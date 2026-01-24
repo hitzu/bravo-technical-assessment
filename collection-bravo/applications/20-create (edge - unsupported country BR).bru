@@ -1,7 +1,7 @@
 meta {
-  name: 01-create (agent, happy)
+  name: 20-create (edge - unsupported country BR)
   type: http
-  seq: 1
+  seq: 20
 }
 
 post {
@@ -16,9 +16,9 @@ headers {
 
 body:json {
   {
-    "countryId": "b4623508-25d8-4359-8030-766792fb9cd4",
-    "fullName": "Juan Pérez",
-    "documentId": "XEXX010101000",
+    "countryId": "{{countryId_br}}",
+    "fullName": "Ana Silva",
+    "documentId": "BR0000000000",
     "monthlyIncome": 25000,
     "requestedAmount": 100000
   }
@@ -28,3 +28,4 @@ settings {
   encodeUrl: true
   timeout: 0
 }
+

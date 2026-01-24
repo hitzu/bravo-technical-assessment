@@ -1,0 +1,30 @@
+meta {
+  name: 19-create (agent, risk eval MX)
+  type: http
+  seq: 19
+}
+
+post {
+  url: {{base_url}}/applications
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{agent_token}}
+}
+
+body:json {
+  {
+    "countryId": "{{countryId_mx}}",
+    "fullName": "María López",
+    "documentId": "MXLX010101000",
+    "monthlyIncome": 400000,
+    "requestedAmount": 1000
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

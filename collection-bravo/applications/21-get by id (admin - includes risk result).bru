@@ -1,0 +1,21 @@
+meta {
+  name: 21-get by id (admin - includes risk result)
+  type: http
+  seq: 21
+}
+
+get {
+  url: {{base_url}}/applications/{{applicationId_risk}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{admin_token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

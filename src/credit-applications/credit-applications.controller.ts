@@ -88,13 +88,13 @@ export class CreditApplicationsController {
     @AuthUser() authUser: AuthUserContext,
     @Param('id', new ParseUUIDPipe()) id: string,
   ): Promise<CreditApplicationResponseDto> {
-    const application = await this.creditApplicationsService.getApplication(
+    const result = await this.creditApplicationsService.getApplicationWithLatestRiskResult(
       authUser.tenantId,
       authUser.userId,
       authUser.role,
       id,
     );
-    return new CreditApplicationResponseDto(application);
+    return new CreditApplicationResponseDto(result.application, result.riskResult);
   }
 
   @Patch(':id/status')

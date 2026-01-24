@@ -2,7 +2,9 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
 
 import type { CreditApplication } from '../entities/credit-applications.entity';
+import type { ApplicationRiskResult } from '../entities/application-risk-result.entity';
 import { CREDIT_APPLICATION_STATUS } from '../../common/types/credit-application-status.type';
+import { ApplicationRiskResultSummaryDto } from './application-risk-result-summary.dto';
 
 export class CreditApplicationResponseDto {
   @Expose()
@@ -80,6 +82,15 @@ export class CreditApplicationResponseDto {
 
   @Expose()
   @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Latest risk evaluation result',
+    type: ApplicationRiskResultSummaryDto,
+  })
+  riskResult?: ApplicationRiskResultSummaryDto | null;
+
+  @Expose()
+  @ApiProperty({
     description: 'Creation timestamp',
     example: '2026-01-17T00:00:00.000Z',
   })
@@ -92,14 +103,26 @@ export class CreditApplicationResponseDto {
   })
   updatedAt: Date;
 
-  constructor(application: CreditApplication) {
+  constructor(application: CreditApplication, riskResult?: ApplicationRiskResult | null) {
     this.id = application.id;
     this.tenantId = application.tenantId;
     this.createdBy = application.createdBy;
     this.countryId = application.countryId;
     this.fullName = application.fullName;
     this.documentId = application.documentId;
+    this.monthlyIncome = application.monthlyIncome;
+    this.requestedAmount = application.requestedAmount;
     this.status = application.status;
+    this.bankInfo = application.bankInfo ?? null;
+    this.riskResult = riskResult
+      ? new ApplicationRiskResultSummaryDto({
+        decision: riskResult.decision,
+        riskScore: riskResult.riskScore,
+        debtToIncomeRatio: riskResult.debtToIncomeRatio,
+      })
+      : null;
+    this.createdAt = application.createdAt;
+    this.updatedAt = application.updatedAt;
   }
 }
 

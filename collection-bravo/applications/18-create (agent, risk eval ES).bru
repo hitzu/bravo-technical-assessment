@@ -1,7 +1,7 @@
 meta {
-  name: 01-create (agent, happy)
+  name: 18-create (agent, risk eval ES)
   type: http
-  seq: 1
+  seq: 18
 }
 
 post {
@@ -16,11 +16,11 @@ headers {
 
 body:json {
   {
-    "countryId": "b4623508-25d8-4359-8030-766792fb9cd4",
+    "countryId": "{{countryId_es}}",
     "fullName": "Juan Pérez",
     "documentId": "XEXX010101000",
-    "monthlyIncome": 25000,
-    "requestedAmount": 100000
+    "monthlyIncome": 2500000,
+    "requestedAmount": 1000
   }
 }
 

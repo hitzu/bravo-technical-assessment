@@ -18,6 +18,7 @@
     "db:run": "ts-node ./node_modules/typeorm/cli.js -d src/config/database/data-source.ts migration:run",
     "db:revert": "ts-node ./node_modules/typeorm/cli.js -d src/config/database/data-source.ts migration:revert",
     "db:status": "ts-node ./node_modules/typeorm/cli.js -d src/config/database/data-source.ts migration:show",
+    "seed:dev-data": "ts-node -r tsconfig-paths/register src/database/seeders/seed-dev-data.ts",
     "test:e2e": "NODE_ENV=test jest --config ./test/jest-e2e.json",
     "prepare": "husky"
   },
@@ -29,6 +30,7 @@
     "@nestjs/schedule": "^6.1.0",
     "@nestjs/swagger": "^11.2.1",
     "@nestjs/typeorm": "^11.0.0",
+    "@faker-js/faker": "9.9.0",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
@@ -46,7 +48,6 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
-    "@faker-js/faker": "9.9.0",
     "@jorgebodega/typeorm-factory": "^2.1.0",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
