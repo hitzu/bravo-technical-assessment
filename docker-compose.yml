@@ -1,0 +1,51 @@
+services:
+  # PostgreSQL Database for Development
+  postgres-dev:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bravo_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '57434:5432'
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - bravo-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d bravo_dev']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL Database for Testing
+  postgres-test:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bravo_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '57435:5432'
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    networks:
+      - bravo-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d bravo_test']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  postgres_test_data:
+    driver: local
+
+networks:
+  bravo-network:
+    driver: bridge

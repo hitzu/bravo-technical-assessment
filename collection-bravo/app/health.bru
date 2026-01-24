@@ -1,0 +1,17 @@
+meta {
+  name: health
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/health
+  body: json
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

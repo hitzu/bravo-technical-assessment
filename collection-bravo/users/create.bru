@@ -1,0 +1,31 @@
+meta {
+  name: create
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/users
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "tenantId": "{{tenantId}}",
+    "email": "new.user@acme.com",
+    "fullName": "New User",
+    "role": "AGENT",
+    "status": "ACTIVE"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

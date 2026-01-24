@@ -1,0 +1,21 @@
+meta {
+  name: get by id
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/users/{{userId}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

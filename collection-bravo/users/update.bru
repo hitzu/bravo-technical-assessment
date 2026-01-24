@@ -1,0 +1,32 @@
+meta {
+  name: update
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{base_url}}/users/{{userId}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "fullName": "Updated Name",
+    "role": "ADMIN",
+    "status": "ACTIVE",
+    "scopes": {
+      "grades": ["READ"]
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

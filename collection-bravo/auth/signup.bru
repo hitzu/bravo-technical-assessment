@@ -1,0 +1,26 @@
+meta {
+  name: signup
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/auth/signup
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "tenantId": "{{tenantId}}",
+    "email": "agent@reparadora.com",
+    "fullName": "Agente reparador uno",
+    "role": "AGENT",
+    "status": "ACTIVE"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
