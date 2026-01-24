@@ -1,0 +1,21 @@
+meta {
+  name: 10-get by id (agent, happy - mine)
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{base_url}}/applications/{{applicationId}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{agent_token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

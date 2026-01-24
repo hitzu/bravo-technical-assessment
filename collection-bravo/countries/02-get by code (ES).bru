@@ -1,0 +1,21 @@
+meta {
+  name: 02-get by code (ES)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/countries/ES
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

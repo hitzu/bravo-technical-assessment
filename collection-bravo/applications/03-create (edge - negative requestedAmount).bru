@@ -1,0 +1,31 @@
+meta {
+  name: 03-create (edge - negative requestedAmount)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/applications
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{agent_token}}
+}
+
+body:json {
+  {
+    "country": "MX",
+    "fullName": "Negative Amount",
+    "documentId": "NEG-001",
+    "monthlyIncome": 1000,
+    "requestedAmount": -1
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

@@ -1,0 +1,21 @@
+meta {
+  name: 17-auth (edge - invalid scheme)
+  type: http
+  seq: 17
+}
+
+get {
+  url: {{base_url}}/applications
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Token {{agent_token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

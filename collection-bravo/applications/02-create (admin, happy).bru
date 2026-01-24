@@ -1,0 +1,31 @@
+meta {
+  name: 02-create (admin, happy)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/applications
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{admin_token}}
+}
+
+body:json {
+  {
+    "country": "ES",
+    "fullName": "María García",
+    "documentId": "12345678Z",
+    "monthlyIncome": 3000,
+    "requestedAmount": 12000
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

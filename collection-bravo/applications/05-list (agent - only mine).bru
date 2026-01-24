@@ -1,0 +1,21 @@
+meta {
+  name: 05-list (agent - only mine)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{base_url}}/applications?page=1&pageSize=20
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{agent_token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

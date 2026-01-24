@@ -1,0 +1,27 @@
+meta {
+  name: 14-update status (edge - agent forbidden 403)
+  type: http
+  seq: 14
+}
+
+patch {
+  url: {{base_url}}/applications/{{applicationId}}/status
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{agent_token}}
+}
+
+body:json {
+  {
+    "status": "IN_REVIEW"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

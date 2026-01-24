@@ -1,0 +1,21 @@
+meta {
+  name: 12-get by id (edge - invalid uuid)
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{base_url}}/applications/not-a-uuid
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{admin_token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

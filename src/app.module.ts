@@ -11,6 +11,8 @@ import { DevTokenGuard } from './auth/guards/dev-token.guard';
 import { AuthModule } from './auth/auth.module';
 import { TokenModule } from './tokens/token.module';
 import { TenantsModule } from './tenants/tenants.module';
+import { CreditApplicationsModule } from './credit-applications/credit-applications.module';
+import { CountriesModule } from './countries/countries.module';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { TenantsModule } from './tenants/tenants.module';
     AuthModule,
     TokenModule,
     TenantsModule,
+    CreditApplicationsModule,
+    CountriesModule,
   ],
   controllers: [AppController],
   providers: [

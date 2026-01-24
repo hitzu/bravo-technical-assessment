@@ -1,0 +1,183 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import type { FindOptionsWhere, Repository } from 'typeorm';
+
+import type { AuthUserRole } from '../auth/types/auth-user-context';
+import { USER_ROLES } from '../common/types/user-roles.type';
+import { CREDIT_APPLICATION_STATUS } from '../common/types/credit-application-status.type';
+import { EXCEPTION_RESPONSE } from '../config/errors/exception-response.config';
+import { CreditApplication } from './entities/credit-applications.entity';
+import type { CreateCreditApplicationDto } from './dto/create-credit-application.dto';
+import type { ListCreditApplicationsQueryDto } from './dto/list-credit-applications.query.dto';
+
+@Injectable()
+export class CreditApplicationsService {
+  private readonly logger = new Logger(CreditApplicationsService.name);
+
+  constructor(
+    @InjectRepository(CreditApplication)
+    private readonly creditApplicationsRepository: Repository<CreditApplication>,
+  ) { }
+
+  async createApplication(
+    tenantId: string,
+    userId: string,
+    role: AuthUserRole,
+    dto: CreateCreditApplicationDto,
+  ): Promise<CreditApplication> {
+    this.assertRoleAllowed(role, [USER_ROLES.ADMIN, USER_ROLES.AGENT]);
+    if (dto.monthlyIncome < 0) {
+      throw new BadRequestException('monthlyIncome must be >= 0');
+    }
+    if (dto.requestedAmount < 0) {
+      throw new BadRequestException('requestedAmount must be >= 0');
+    }
+
+    const entity = this.creditApplicationsRepository.create({
+      tenantId,
+      createdBy: userId,
+      countryId: dto.countryId,
+      fullName: dto.fullName,
+      documentId: dto.documentId,
+      monthlyIncome: dto.monthlyIncome,
+      requestedAmount: dto.requestedAmount,
+      status: CREDIT_APPLICATION_STATUS.PENDING,
+      bankInfo: null,
+    });
+
+    const saved = await this.creditApplicationsRepository.save(entity);
+    this.logger.log(
+      { applicationId: saved.id, tenantId, createdBy: userId },
+      'Credit application created',
+    );
+    return saved;
+  }
+
+  async listApplications(
+    tenantId: string,
+    userId: string,
+    role: AuthUserRole,
+    filters: ListCreditApplicationsQueryDto,
+  ): Promise<{
+    data: CreditApplication[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    this.assertRoleAllowed(role, [USER_ROLES.ADMIN, USER_ROLES.AGENT]);
+
+    const page = filters.page ?? 1;
+    const pageSize = filters.pageSize ?? 20;
+    const skip = (page - 1) * pageSize;
+    const take = pageSize;
+
+    const where: FindOptionsWhere<CreditApplication> = { tenantId };
+    if (filters.countryId) {
+      where.countryId = filters.countryId;
+    }
+    if (filters.status) {
+      where.status = filters.status;
+    }
+    if (role === USER_ROLES.AGENT) {
+      where.createdBy = userId;
+    }
+
+    const [data, total] = await this.creditApplicationsRepository.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      skip,
+      take,
+    });
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  async getApplication(
+    tenantId: string,
+    userId: string,
+    role: AuthUserRole,
+    id: string,
+  ): Promise<CreditApplication> {
+    this.assertRoleAllowed(role, [USER_ROLES.ADMIN, USER_ROLES.AGENT]);
+
+    const application = await this.creditApplicationsRepository.findOne({
+      where: { id, tenantId },
+    });
+
+    if (!application) {
+      throw new NotFoundException('Credit application not found');
+    }
+
+    if (role === USER_ROLES.AGENT && application.createdBy !== userId) {
+      throw new ForbiddenException(EXCEPTION_RESPONSE.INSUFFICIENT_ROLE);
+    }
+
+    return application;
+  }
+
+  async updateStatus(
+    tenantId: string,
+    userId: string,
+    role: AuthUserRole,
+    id: string,
+    newStatus: CREDIT_APPLICATION_STATUS,
+  ): Promise<CreditApplication> {
+    this.assertRoleAllowed(role, [USER_ROLES.ADMIN]);
+    void userId;
+
+    const application = await this.creditApplicationsRepository.findOne({
+      where: { id, tenantId },
+    });
+
+    if (!application) {
+      throw new NotFoundException('Credit application not found');
+    }
+
+    this.assertLegalStatusTransition(application.status, newStatus);
+
+    application.status = newStatus;
+    const updated = await this.creditApplicationsRepository.save(application);
+    this.logger.log(
+      { applicationId: updated.id, tenantId, status: updated.status },
+      'Credit application status updated',
+    );
+    return updated;
+  }
+
+  private assertRoleAllowed(role: AuthUserRole, allowed: USER_ROLES[]): void {
+    const normalizedRole = role as unknown as USER_ROLES;
+    if (!allowed.includes(normalizedRole)) {
+      throw new ForbiddenException(EXCEPTION_RESPONSE.INSUFFICIENT_ROLE);
+    }
+  }
+
+  private assertLegalStatusTransition(
+    current: CREDIT_APPLICATION_STATUS,
+    next: CREDIT_APPLICATION_STATUS,
+  ): void {
+    const isCurrentTerminal =
+      current === CREDIT_APPLICATION_STATUS.APPROVED ||
+      current === CREDIT_APPLICATION_STATUS.REJECTED;
+    const isNextTerminal =
+      next === CREDIT_APPLICATION_STATUS.APPROVED ||
+      next === CREDIT_APPLICATION_STATUS.REJECTED;
+
+    if (isCurrentTerminal && isNextTerminal && current !== next) {
+      throw new BadRequestException(
+        `Invalid status transition from ${current} to ${next}`,
+      );
+    }
+  }
+}
+

@@ -1,0 +1,27 @@
+meta {
+  name: 15-update status (edge - invalid status)
+  type: http
+  seq: 15
+}
+
+patch {
+  url: {{base_url}}/applications/{{applicationId}}/status
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{admin_token}}
+}
+
+body:json {
+  {
+    "status": "PENDING"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

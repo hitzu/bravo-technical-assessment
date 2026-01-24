@@ -1,0 +1,27 @@
+meta {
+  name: 13-update status (admin, happy)
+  type: http
+  seq: 13
+}
+
+patch {
+  url: {{base_url}}/applications/{{applicationId}}/status
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{admin_token}}
+}
+
+body:json {
+  {
+    "status": "IN_REVIEW"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

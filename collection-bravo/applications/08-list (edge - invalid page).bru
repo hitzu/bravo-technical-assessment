@@ -1,0 +1,21 @@
+meta {
+  name: 08-list (edge - invalid page)
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{base_url}}/applications?page=0&pageSize=20
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{admin_token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

@@ -1,0 +1,31 @@
+meta {
+  name: 01-create (agent, happy)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/applications
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{agent_token}}
+}
+
+body:json {
+  {
+    "country": "MX",
+    "fullName": "Juan Pérez",
+    "documentId": "XEXX010101000",
+    "monthlyIncome": 25000,
+    "requestedAmount": 100000
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

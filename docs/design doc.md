@@ -72,7 +72,16 @@ Incluye `tenantId`, `userId`, `role`.
 
 > Nota sobre IDs (UUID): los IDs primarios se modelan como `uuid` pensando en **integraciones** (entre microservicios y con proveedores externos). En un sistema distribuido es común generar IDs fuera de una única base de datos (o en distintos servicios), y `uuid` reduce el riesgo de colisiones y facilita la trazabilidad/compatibilidad al escalar.
 
-### 3.1 Tenants y usuarios
+### 3.1 Country, Tenants y usuarios
+
+#### country
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `code` | (char(2) | PK – e.g. 'ES', 'MX', 'BR' .|
+| `name` | (varchar(100) | NOT NULL) – e.g. 'España', 'México'.|
+| `status` | (enum/string: |'ACTIVE / INACTIVE' | |
+| `created_at` / `updated_at` / `deleted_at` | timestamptz | `deleted_at` para soft-delete |
 
 #### `tenants`
 

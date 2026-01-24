@@ -1,0 +1,21 @@
+meta {
+  name: 07-list (edge - invalid status)
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{base_url}}/applications?status=NOT_A_STATUS&page=1&pageSize=20
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{admin_token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

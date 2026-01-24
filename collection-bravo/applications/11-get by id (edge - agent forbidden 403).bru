@@ -1,0 +1,21 @@
+meta {
+  name: 11-get by id (edge - agent forbidden 403)
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{base_url}}/applications/{{applicationId}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{agent2_token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

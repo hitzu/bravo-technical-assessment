@@ -1,0 +1,21 @@
+meta {
+  name: 09-get by id (admin, happy)
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{base_url}}/applications/{{applicationId}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{admin_token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

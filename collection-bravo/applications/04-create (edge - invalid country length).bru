@@ -1,0 +1,31 @@
+meta {
+  name: 04-create (edge - invalid country length)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/applications
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{agent_token}}
+}
+
+body:json {
+  {
+    "country": "MEX",
+    "fullName": "Bad Country",
+    "documentId": "BAD-COUNTRY",
+    "monthlyIncome": 1000,
+    "requestedAmount": 100
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

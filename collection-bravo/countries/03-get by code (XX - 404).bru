@@ -1,0 +1,21 @@
+meta {
+  name: 03-get by code (XX - 404)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/countries/XX
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
