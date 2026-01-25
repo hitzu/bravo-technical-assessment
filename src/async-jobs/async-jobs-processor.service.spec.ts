@@ -6,6 +6,8 @@ import { Repository } from 'typeorm';
 import { CountryFactory } from '@factories/country/country.factory';
 import { CreditApplicationFactory } from '@factories/credit-application/credit-application.factory';
 import { TenantFactory } from '@factories/tenant/tenant.factory';
+import { CACHE_PORT } from '../cache/cache.port';
+import { InMemoryCacheService } from '../cache/in-memory-cache.service';
 import { CREDIT_APPLICATION_STATUS } from '../common/types/credit-application-status.type';
 import { COUNTRY_STATUS } from '../common/types/country-status.type';
 import { AppDataSource as TestDataSource } from '../config/database/data-source';
@@ -64,6 +66,10 @@ describe('AsyncJobsProcessorService', () => {
         {
           provide: getRepositoryToken(CountryRule),
           useValue: TestDataSource.getRepository(CountryRule),
+        },
+        {
+          provide: CACHE_PORT,
+          useClass: InMemoryCacheService,
         },
       ],
     }).compile();

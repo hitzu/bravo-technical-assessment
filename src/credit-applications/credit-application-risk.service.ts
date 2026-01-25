@@ -1,7 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
+import type { CachePort } from '../cache/cache.port';
+import { CACHE_PORT } from '../cache/cache.port';
 import { CREDIT_APPLICATION_STATUS } from '../common/types/credit-application-status.type';
 import { APPLICATION_RISK_DECISION } from './constants/risk.types';
 import { BankProviderRegistryService } from './bank-providers/bank-provider-registry.service';
@@ -24,6 +26,8 @@ export class CreditApplicationRiskService {
     private readonly countryRulesRepository: Repository<CountryRule>,
     private readonly bankProviderRegistryService: BankProviderRegistryService,
     private readonly riskEvaluatorService: RiskEvaluatorService,
+    @Inject(CACHE_PORT)
+    private readonly cache: CachePort,
   ) { }
 
   async evaluateAndPersistForApplication(
@@ -33,7 +37,7 @@ export class CreditApplicationRiskService {
     application: CreditApplication;
     riskResult: ApplicationRiskResult;
   }> {
-    return this.creditApplicationsRepository.manager.transaction(
+    const result = await this.creditApplicationsRepository.manager.transaction(
       async (manager) => {
         const creditApplicationsRepository = manager.getRepository(CreditApplication);
         const applicationRiskResultsRepository = manager.getRepository(ApplicationRiskResult);
@@ -89,6 +93,10 @@ export class CreditApplicationRiskService {
         return { application, riskResult };
       },
     );
+
+    // NOTE: In production this would be backed by Redis using the same CachePort interface.
+    this.cache.del(`application:${tenantId}:${result.application.id}`);
+    return result;
   }
 }
 

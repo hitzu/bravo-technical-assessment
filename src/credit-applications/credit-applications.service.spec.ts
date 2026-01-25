@@ -7,10 +7,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { ApplicationRiskResultFactory } from '@factories/application-risk-result/application-risk-result.factory';
 import { CreditApplicationFactory } from '@factories/credit-application/credit-application.factory';
 import { CountryFactory } from '@factories/country/country.factory';
 import { TenantFactory } from '@factories/tenant/tenant.factory';
 import type { AuthUserRole } from '../auth/types/auth-user-context';
+import type { CachePort } from '../cache/cache.port';
+import { CACHE_PORT } from '../cache/cache.port';
+import { InMemoryCacheService } from '../cache/in-memory-cache.service';
 import { USER_ROLES } from '../common/types/user-roles.type';
 import { CREDIT_APPLICATION_STATUS } from '../common/types/credit-application-status.type';
 import { COUNTRY_STATUS } from '../common/types/country-status.type';
@@ -29,6 +33,8 @@ describe('CreditApplicationsService', () => {
   let tenantFactory: TenantFactory;
   let countryFactory: CountryFactory;
   let creditApplicationFactory: CreditApplicationFactory;
+  let applicationRiskResultFactory: ApplicationRiskResultFactory;
+  let cache: CachePort;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -41,6 +47,10 @@ describe('CreditApplicationsService', () => {
         {
           provide: getRepositoryToken(ApplicationRiskResult),
           useValue: TestDataSource.getRepository(ApplicationRiskResult),
+        },
+        {
+          provide: CACHE_PORT,
+          useClass: InMemoryCacheService,
         },
       ],
     }).compile();
@@ -55,6 +65,8 @@ describe('CreditApplicationsService', () => {
     tenantFactory = new TenantFactory(TestDataSource);
     countryFactory = new CountryFactory(TestDataSource);
     creditApplicationFactory = new CreditApplicationFactory(TestDataSource);
+    applicationRiskResultFactory = new ApplicationRiskResultFactory(TestDataSource);
+    cache = module.get<CachePort>(CACHE_PORT);
   });
 
   describe('createApplication', () => {
@@ -535,6 +547,120 @@ describe('CreditApplicationsService', () => {
       // Assert
       expect(updated.status).toBe(CREDIT_APPLICATION_STATUS.IN_REVIEW);
       expect(persisted?.status).toBe(CREDIT_APPLICATION_STATUS.IN_REVIEW);
+    });
+  });
+
+  describe('getApplicationWithLatestRiskResult (cache)', () => {
+    it('caches application detail (application + latest risk) to avoid repeated DB hits', async () => {
+      // Arrange
+      const tenant = await tenantFactory.create();
+      const country = await countryFactory.create();
+      const userId = '00000000-0000-0000-0000-0000000000aa';
+      const app = await creditApplicationFactory.create({
+        tenantId: tenant.id,
+        countryId: country.id,
+        createdBy: userId,
+      });
+      await applicationRiskResultFactory.create({
+        tenantId: tenant.id,
+        applicationId: app.id,
+        countryId: country.id,
+      });
+
+      const appFindSpy = jest.spyOn(creditAppRepo, 'findOne');
+      const riskFindSpy = jest.spyOn(applicationRiskResultRepo, 'findOne');
+
+      // Act
+      const first = await service.getApplicationWithLatestRiskResult(
+        tenant.id,
+        userId,
+        USER_ROLES.AGENT,
+        app.id,
+      );
+      const second = await service.getApplicationWithLatestRiskResult(
+        tenant.id,
+        userId,
+        USER_ROLES.AGENT,
+        app.id,
+      );
+
+      // Assert
+      expect(first.application.id).toBe(app.id);
+      expect(second.application.id).toBe(app.id);
+      expect(appFindSpy).toHaveBeenCalledTimes(1);
+      expect(riskFindSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('invalidates cached detail on updateStatus', async () => {
+      // Arrange
+      const tenant = await tenantFactory.create();
+      const country = await countryFactory.create();
+      const userId = '00000000-0000-0000-0000-0000000000aa';
+      const app = await creditApplicationFactory.create({
+        tenantId: tenant.id,
+        countryId: country.id,
+        createdBy: userId,
+        status: CREDIT_APPLICATION_STATUS.PENDING,
+      });
+      await applicationRiskResultFactory.create({
+        tenantId: tenant.id,
+        applicationId: app.id,
+        countryId: country.id,
+      });
+
+      const cacheKey = `application:${tenant.id}:${app.id}`;
+      const appFindSpy = jest.spyOn(creditAppRepo, 'findOne');
+      const riskFindSpy = jest.spyOn(applicationRiskResultRepo, 'findOne');
+      const cacheGetSpy = jest.spyOn(cache, 'get');
+
+      await service.getApplicationWithLatestRiskResult(
+        tenant.id,
+        userId,
+        USER_ROLES.AGENT,
+        app.id,
+      );
+      const appFindCallsAfterFirst = appFindSpy.mock.calls.length;
+      const riskFindCallsAfterFirst = riskFindSpy.mock.calls.length;
+
+      await service.getApplicationWithLatestRiskResult(
+        tenant.id,
+        userId,
+        USER_ROLES.AGENT,
+        app.id,
+      );
+
+      expect(cacheGetSpy).toHaveBeenCalledTimes(2);
+      expect(cacheGetSpy.mock.calls[0]?.[0]).toBe(cacheKey);
+      expect(cacheGetSpy.mock.calls[1]?.[0]).toBe(cacheKey);
+      expect(cacheGetSpy.mock.results[0]?.value).toBeUndefined();
+      expect(cacheGetSpy.mock.results[1]?.value).toBeDefined();
+
+      expect(appFindSpy.mock.calls.length).toBe(appFindCallsAfterFirst);
+      expect(riskFindSpy.mock.calls.length).toBe(riskFindCallsAfterFirst);
+
+      appFindSpy.mockClear();
+      riskFindSpy.mockClear();
+
+      await service.updateStatus(
+        tenant.id,
+        '00000000-0000-0000-0000-000000000001',
+        USER_ROLES.ADMIN,
+        app.id,
+        CREDIT_APPLICATION_STATUS.IN_REVIEW,
+      );
+
+      appFindSpy.mockClear();
+      riskFindSpy.mockClear();
+
+      await service.getApplicationWithLatestRiskResult(
+        tenant.id,
+        userId,
+        USER_ROLES.AGENT,
+        app.id,
+      );
+
+      expect(appFindSpy).toHaveBeenCalledTimes(1);
+      expect(riskFindSpy).toHaveBeenCalledTimes(1);
     });
   });
 });

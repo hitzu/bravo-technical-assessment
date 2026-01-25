@@ -3,6 +3,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { AppDataSource as TestDataSource } from '../config/database/data-source';
+import { CACHE_PORT } from '../cache/cache.port';
+import { InMemoryCacheService } from '../cache/in-memory-cache.service';
 import { COUNTRY_STATUS } from '../common/types/country-status.type';
 import { CountryFactory } from '@factories/country/country.factory';
 import { Country } from './entities/country.entity';
@@ -20,6 +22,10 @@ describe('CountriesService', () => {
         {
           provide: getRepositoryToken(Country),
           useValue: TestDataSource.getRepository(Country),
+        },
+        {
+          provide: CACHE_PORT,
+          useClass: InMemoryCacheService,
         },
       ],
     }).compile();
@@ -73,6 +79,26 @@ describe('CountriesService', () => {
 
       // Assert
       expect(countries).toEqual([]);
+    });
+
+    it('caches active countries to avoid repeated DB hits', async () => {
+      // Arrange
+      await countryFactory.create({
+        code: 'AR',
+        name: 'Argentina',
+        status: COUNTRY_STATUS.ACTIVE,
+      });
+
+      const findSpy = jest.spyOn(countryRepo, 'find');
+
+      // Act
+      const first = await service.findAllActive();
+      const second = await service.findAllActive();
+
+      // Assert
+      expect(first).toHaveLength(1);
+      expect(second).toHaveLength(1);
+      expect(findSpy).toHaveBeenCalledTimes(1);
     });
   });
 

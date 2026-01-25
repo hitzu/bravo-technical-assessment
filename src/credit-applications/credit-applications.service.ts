@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -9,6 +10,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { FindOptionsWhere, Repository } from 'typeorm';
 
 import type { AuthUserRole } from '../auth/types/auth-user-context';
+import type { CachePort } from '../cache/cache.port';
+import { CACHE_PORT } from '../cache/cache.port';
 import { USER_ROLES } from '../common/types/user-roles.type';
 import { CREDIT_APPLICATION_STATUS } from '../common/types/credit-application-status.type';
 import { EXCEPTION_RESPONSE } from '../config/errors/exception-response.config';
@@ -17,6 +20,13 @@ import { CreditApplication } from './entities/credit-applications.entity';
 import type { CreateCreditApplicationDto } from './dto/create-credit-application.dto';
 import type { ListCreditApplicationsQueryDto } from './dto/list-credit-applications.query.dto';
 import { Country } from '../countries/entities/country.entity';
+
+type ApplicationDetail = {
+  application: CreditApplication;
+  riskResult: ApplicationRiskResult | null;
+};
+
+const TTL_APPLICATION_DETAIL_MS = 60_000;
 
 @Injectable()
 export class CreditApplicationsService {
@@ -27,6 +37,8 @@ export class CreditApplicationsService {
     private readonly creditApplicationsRepository: Repository<CreditApplication>,
     @InjectRepository(ApplicationRiskResult)
     private readonly applicationRiskResultsRepository: Repository<ApplicationRiskResult>,
+    @Inject(CACHE_PORT)
+    private readonly cache: CachePort,
   ) { }
 
   async createApplication(
@@ -152,17 +164,30 @@ export class CreditApplicationsService {
     userId: string,
     role: AuthUserRole,
     id: string,
-  ): Promise<{
-    application: CreditApplication;
-    riskResult: ApplicationRiskResult | null;
-  }> {
+  ): Promise<ApplicationDetail> {
+    const cacheKey = this.buildApplicationDetailCacheKey(tenantId, id);
+    const cached = this.cache.get<ApplicationDetail>(cacheKey);
+    if (cached !== undefined) {
+      this.assertRoleAllowed(role, [USER_ROLES.ADMIN, USER_ROLES.AGENT]);
+      if (
+        role === USER_ROLES.AGENT &&
+        cached.application.createdBy !== userId
+      ) {
+        throw new ForbiddenException(EXCEPTION_RESPONSE.INSUFFICIENT_ROLE);
+      }
+      this.logger.log('Returning cached application detail');
+      return cached;
+    }
+
     const application = await this.getApplication(tenantId, userId, role, id);
     const riskResult = await this.applicationRiskResultsRepository.findOne({
       where: { tenantId, applicationId: application.id },
       order: { createdAt: 'DESC' },
     });
 
-    return { application, riskResult };
+    const detail: ApplicationDetail = { application, riskResult };
+    this.cache.set(cacheKey, detail, TTL_APPLICATION_DETAIL_MS);
+    return detail;
   }
 
   async updateStatus(
@@ -191,6 +216,8 @@ export class CreditApplicationsService {
       { applicationId: updated.id, tenantId, status: updated.status },
       'Credit application status updated',
     );
+    // NOTE: In production this would be backed by Redis using the same CachePort interface.
+    this.cache.del(this.buildApplicationDetailCacheKey(tenantId, updated.id));
     return updated;
   }
 
@@ -217,6 +244,10 @@ export class CreditApplicationsService {
         `Invalid status transition from ${current} to ${next}`,
       );
     }
+  }
+
+  private buildApplicationDetailCacheKey(tenantId: string, applicationId: string): string {
+    return `application:${tenantId}:${applicationId}`;
   }
 }
 

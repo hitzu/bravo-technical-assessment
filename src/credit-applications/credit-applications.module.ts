@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { CacheModule } from '../cache/cache.module';
 import { Country } from '../countries/entities/country.entity';
 import { CountryRule } from '../countries/entities/country-rule.entity';
 import { CreditApplicationsController } from './credit-applications.controller';
@@ -23,6 +24,7 @@ import { RiskStrategyRegistryService } from './risk-strategies/risk-strategy-reg
       Country,
       CountryRule,
     ]),
+    CacheModule,
   ],
   controllers: [CreditApplicationsController],
   providers: [

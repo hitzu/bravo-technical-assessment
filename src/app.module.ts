@@ -15,6 +15,7 @@ import { TenantsModule } from './tenants/tenants.module';
 import { CreditApplicationsModule } from './credit-applications/credit-applications.module';
 import { CountriesModule } from './countries/countries.module';
 import { AsyncJobsModule } from './async-jobs/async-jobs.module';
+import { CacheModule } from './cache/cache.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { AsyncJobsModule } from './async-jobs/async-jobs.module';
     CreditApplicationsModule,
     CountriesModule,
     AsyncJobsModule,
+    CacheModule,
   ],
   controllers: [AppController],
   providers: [

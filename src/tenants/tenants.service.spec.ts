@@ -3,6 +3,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { TenantFactory } from '@factories/tenant/tenant.factory';
+import { CACHE_PORT } from '../cache/cache.port';
+import { InMemoryCacheService } from '../cache/in-memory-cache.service';
 import { AppDataSource as TestDataSource } from '../config/database/data-source';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { Tenant } from './entities/tenant.entity';
@@ -20,6 +22,10 @@ describe('TenantsService', () => {
         {
           provide: getRepositoryToken(Tenant),
           useValue: TestDataSource.getRepository(Tenant),
+        },
+        {
+          provide: CACHE_PORT,
+          useClass: InMemoryCacheService,
         },
       ],
     }).compile();
