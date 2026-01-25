@@ -22,6 +22,7 @@ import { RiskStrategyRegistryService } from '../credit-applications/risk-strateg
 import { RiskEvaluatorService } from '../credit-applications/risk-evaluator.service';
 import { Country } from '../countries/entities/country.entity';
 import { CountryRule } from '../countries/entities/country-rule.entity';
+import { WebhookDeliveriesService } from '../webhook-deliveries/webhook-deliveries.service';
 import { AsyncJobsProcessorService } from './async-jobs-processor.service';
 import { AsyncJob } from './entities/async-job.entity';
 import { ASYNC_JOB_STATUS } from './types/async-job-status.type';
@@ -32,11 +33,25 @@ describe('AsyncJobsProcessorService', () => {
   let asyncJobsRepo: Repository<AsyncJob>;
   let creditApplicationsRepo: Repository<CreditApplication>;
   let applicationRiskResultsRepo: Repository<ApplicationRiskResult>;
+  let webhookDeliveriesService: Pick<
+    WebhookDeliveriesService,
+    'createRiskResultDelivery' | 'markDeliverySuccess'
+  >;
   let tenantFactory: TenantFactory;
   let countryFactory: CountryFactory;
   let creditApplicationFactory: CreditApplicationFactory;
 
   beforeEach(async () => {
+    webhookDeliveriesService = {
+      createRiskResultDelivery: jest.fn().mockResolvedValue({
+        id: faker.string.uuid(),
+      }),
+      markDeliverySuccess: jest.fn().mockResolvedValue({}),
+    } as unknown as Pick<
+      WebhookDeliveriesService,
+      'createRiskResultDelivery' | 'markDeliverySuccess'
+    >;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AsyncJobsProcessorService,
@@ -47,6 +62,10 @@ describe('AsyncJobsProcessorService', () => {
         EsRiskStrategy,
         MxRiskStrategy,
         DefaultRiskStrategy,
+        {
+          provide: WebhookDeliveriesService,
+          useValue: webhookDeliveriesService,
+        },
         {
           provide: getRepositoryToken(AsyncJob),
           useValue: TestDataSource.getRepository(AsyncJob),
@@ -126,6 +145,8 @@ describe('AsyncJobsProcessorService', () => {
 
     // Assert
     expect(result).toEqual({ processed: 1, dlq: 0 });
+    expect(webhookDeliveriesService.createRiskResultDelivery).toHaveBeenCalledTimes(1);
+    expect(webhookDeliveriesService.markDeliverySuccess).toHaveBeenCalledTimes(1);
 
     const updatedJob = await asyncJobsRepo.findOne({ where: { id: job.id } });
     expect(updatedJob?.status).toBe(ASYNC_JOB_STATUS.DONE);

@@ -16,6 +16,7 @@ import { CreditApplicationsModule } from './credit-applications/credit-applicati
 import { CountriesModule } from './countries/countries.module';
 import { AsyncJobsModule } from './async-jobs/async-jobs.module';
 import { CacheModule } from './cache/cache.module';
+import { WebhookDeliveriesModule } from './webhook-deliveries/webhook-deliveries.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { CacheModule } from './cache/cache.module';
     CountriesModule,
     AsyncJobsModule,
     CacheModule,
+    WebhookDeliveriesModule,
   ],
   controllers: [AppController],
   providers: [
