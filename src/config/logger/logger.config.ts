@@ -14,14 +14,14 @@ export const getLoggerConfigs = (): Params => {
 
       transport: isDevelopment
         ? {
-            target: 'pino-pretty',
-            options: {
-              colorize: true,
-              translateTime: 'HH:MM:ss',
-              ignore: 'pid,hostname',
-              singleLine: false,
-            },
-          }
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            translateTime: 'HH:MM:ss',
+            ignore: 'pid,hostname',
+            singleLine: false,
+          },
+        }
         : undefined,
 
       serializers: {
@@ -45,6 +45,9 @@ export const getLoggerConfigs = (): Params => {
           'token',
           'secret',
           'creditCard',
+          `documentId`,
+          `bankInfo`,
+          `fullName`
         ],
         censor: '[REDACTED]',
       },

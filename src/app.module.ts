@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -13,6 +14,7 @@ import { TokenModule } from './tokens/token.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { CreditApplicationsModule } from './credit-applications/credit-applications.module';
 import { CountriesModule } from './countries/countries.module';
+import { AsyncJobsModule } from './async-jobs/async-jobs.module';
 
 @Module({
   imports: [
@@ -24,6 +26,7 @@ import { CountriesModule } from './countries/countries.module';
         '.env',
       ],
     }),
+    ScheduleModule.forRoot(),
     LoggerModule.forRoot(getLoggerConfigs()),
     TypeOrmModule.forRootAsync({
       useFactory: () => getTypeOrmConfig(),
@@ -33,6 +36,7 @@ import { CountriesModule } from './countries/countries.module';
     TenantsModule,
     CreditApplicationsModule,
     CountriesModule,
+    AsyncJobsModule,
   ],
   controllers: [AppController],
   providers: [

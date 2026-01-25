@@ -12,15 +12,11 @@ import type { AuthUserRole } from '../auth/types/auth-user-context';
 import { USER_ROLES } from '../common/types/user-roles.type';
 import { CREDIT_APPLICATION_STATUS } from '../common/types/credit-application-status.type';
 import { EXCEPTION_RESPONSE } from '../config/errors/exception-response.config';
-import { APPLICATION_RISK_DECISION } from './constants/risk.types';
-import { BankProviderRegistryService } from './bank-providers/bank-provider-registry.service';
 import { ApplicationRiskResult } from './entities/application-risk-result.entity';
 import { CreditApplication } from './entities/credit-applications.entity';
 import type { CreateCreditApplicationDto } from './dto/create-credit-application.dto';
 import type { ListCreditApplicationsQueryDto } from './dto/list-credit-applications.query.dto';
-import { RiskEvaluatorService } from './risk-evaluator.service';
 import { Country } from '../countries/entities/country.entity';
-import { CountryRule } from '../countries/entities/country-rule.entity';
 
 @Injectable()
 export class CreditApplicationsService {
@@ -31,8 +27,6 @@ export class CreditApplicationsService {
     private readonly creditApplicationsRepository: Repository<CreditApplication>,
     @InjectRepository(ApplicationRiskResult)
     private readonly applicationRiskResultsRepository: Repository<ApplicationRiskResult>,
-    private readonly bankProviderRegistryService: BankProviderRegistryService,
-    private readonly riskEvaluatorService: RiskEvaluatorService,
   ) { }
 
   async createApplication(
@@ -52,9 +46,7 @@ export class CreditApplicationsService {
     const saved = await this.creditApplicationsRepository.manager.transaction(
       async (manager) => {
         const creditApplicationsRepository = manager.getRepository(CreditApplication);
-        const applicationRiskResultsRepository = manager.getRepository(ApplicationRiskResult);
         const countriesRepository = manager.getRepository(Country);
-        const countryRulesRepository = manager.getRepository(CountryRule);
         const entity = creditApplicationsRepository.create({
           tenantId,
           createdBy: userId,
@@ -74,36 +66,6 @@ export class CreditApplicationsService {
 
         if (!country) {
           throw new BadRequestException('Invalid countryId');
-        }
-
-        const activeCountryRule = await countryRulesRepository.findOne({
-          where: { countryId: country.id, isActive: true },
-          order: { version: 'DESC' },
-        });
-
-        const bankProvider = this.bankProviderRegistryService.resolve(country.code);
-        const bankSnapshot = await bankProvider.fetchBankInfo(created.documentId);
-        const evaluation = this.riskEvaluatorService.evaluateRisk(
-          country.code,
-          created,
-          bankSnapshot,
-          activeCountryRule,
-        );
-
-        const riskResult = applicationRiskResultsRepository.create({
-          applicationId: created.id,
-          tenantId,
-          countryId: created.countryId,
-          debtToIncomeRatio: evaluation.debtToIncomeRatio,
-          riskScore: evaluation.riskScore,
-          decision: evaluation.decision,
-          rawBankSnapshot: evaluation.rawBankSnapshot,
-        });
-        await applicationRiskResultsRepository.save(riskResult);
-
-        if (evaluation.decision === APPLICATION_RISK_DECISION.REVIEW) {
-          created.status = CREDIT_APPLICATION_STATUS.IN_REVIEW;
-          await creditApplicationsRepository.save(created);
         }
 
         return created;

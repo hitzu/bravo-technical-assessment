@@ -76,34 +76,34 @@ Incluye `tenantId`, `userId`, `role`.
 
 #### country
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| `code` | (char(2) | PK – e.g. 'ES', 'MX', 'BR' .|
-| `name` | (varchar(100) | NOT NULL) – e.g. 'España', 'México'.|
-| `status` | (enum/string: |'ACTIVE / INACTIVE' | |
-| `created_at` / `updated_at` / `deleted_at` | timestamptz | `deleted_at` para soft-delete |
+| Campo                                      | Tipo          | Notas                                |
+| ------------------------------------------ | ------------- | ------------------------------------ | --- |
+| `code`                                     | (char(2)      | PK – e.g. 'ES', 'MX', 'BR' .         |
+| `name`                                     | (varchar(100) | NOT NULL) – e.g. 'España', 'México'. |
+| `status`                                   | (enum/string: | 'ACTIVE / INACTIVE'                  |     |
+| `created_at` / `updated_at` / `deleted_at` | timestamptz   | `deleted_at` para soft-delete        |
 
 #### `tenants`
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| `id` | uuid | PK |
-| `name` | text |  |
+| Campo                                      | Tipo        | Notas                         |
+| ------------------------------------------ | ----------- | ----------------------------- |
+| `id`                                       | uuid        | PK                            |
+| `name`                                     | text        |                               |
 | `created_at` / `updated_at` / `deleted_at` | timestamptz | `deleted_at` para soft-delete |
 
 #### `users`
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| `id` | uuid | PK |
-| `tenant_id` | uuid | FK → `tenants.id` |
-| `email` | varchar | unique por tenant (`ux_users_tenant_email`) |
-| `full_name` | varchar |  |
-| `role` | enum | `ADMIN`, `AGENT` (`USER_ROLES`) |
-| `scopes` | jsonb | nullable (permisos/claims extra) |
-| `status` | enum | `ACTIVE`, … (`USER_STATUS`) |
-| `last_login_at` | timestamptz | nullable |
-| `created_at` / `updated_at` / `deleted_at` | timestamptz | `deleted_at` para soft-delete |
+| Campo                                      | Tipo        | Notas                                       |
+| ------------------------------------------ | ----------- | ------------------------------------------- |
+| `id`                                       | uuid        | PK                                          |
+| `tenant_id`                                | uuid        | FK → `tenants.id`                           |
+| `email`                                    | varchar     | unique por tenant (`ux_users_tenant_email`) |
+| `full_name`                                | varchar     |                                             |
+| `role`                                     | enum        | `ADMIN`, `AGENT` (`USER_ROLES`)             |
+| `scopes`                                   | jsonb       | nullable (permisos/claims extra)            |
+| `status`                                   | enum        | `ACTIVE`, … (`USER_STATUS`)                 |
+| `last_login_at`                            | timestamptz | nullable                                    |
+| `created_at` / `updated_at` / `deleted_at` | timestamptz | `deleted_at` para soft-delete               |
 
 Índices/constraints actuales (según entities):
 
@@ -116,13 +116,13 @@ Regla: toda acción se contextualiza siempre con `tenant_id` + `user_id` + `role
 
 Esta tabla funciona como “token store” dev: permite invalidar tokens emitidos sin depender sólo del parsing del string.
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| `id` | uuid | PK |
-| `token` | text | token raw (`DEV.v1...`) |
-| `type` | enum | `access`, `refresh` (`TOKEN_TYPE`) |
-| `user_id` | uuid | FK → `users.id` (nullable) |
-| `created_at` / `updated_at` / `deleted_at` | timestamptz | revocación vía soft-delete |
+| Campo                                      | Tipo        | Notas                              |
+| ------------------------------------------ | ----------- | ---------------------------------- |
+| `id`                                       | uuid        | PK                                 |
+| `token`                                    | text        | token raw (`DEV.v1...`)            |
+| `type`                                     | enum        | `access`, `refresh` (`TOKEN_TYPE`) |
+| `user_id`                                  | uuid        | FK → `users.id` (nullable)         |
+| `created_at` / `updated_at` / `deleted_at` | timestamptz | revocación vía soft-delete         |
 
 Regla de seguridad (MVP):
 
@@ -133,19 +133,19 @@ Regla de seguridad (MVP):
 
 #### `credit_applications`
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| `id` | uuid | PK |
-| `tenant_id` | uuid | FK → `tenants.id` |
-| `created_by` | uuid | FK → `users.id` |
-| `country` | char(2) | ISO país (ej. `ES`, `MX`) |
-| `full_name` | varchar | PII |
-| `document_id` | varchar | PII (NIF, CURP, etc.) |
-| `monthly_income` | numeric |  |
-| `requested_amount` | numeric |  |
-| `status` | enum | `PENDING`, `IN_REVIEW`, `APPROVED`, `REJECTED`, `ERROR` |
-| `bank_info` | jsonb | pseudo-anonimizado si es posible |
-| `created_at` / `updated_at` | timestamptz |  |
+| Campo                       | Tipo        | Notas                                                   |
+| --------------------------- | ----------- | ------------------------------------------------------- |
+| `id`                        | uuid        | PK                                                      |
+| `tenant_id`                 | uuid        | FK → `tenants.id`                                       |
+| `created_by`                | uuid        | FK → `users.id`                                         |
+| `country`                   | char(2)     | ISO país (ej. `ES`, `MX`)                               |
+| `full_name`                 | varchar     | PII                                                     |
+| `document_id`               | varchar     | PII (NIF, CURP, etc.)                                   |
+| `monthly_income`            | numeric     |                                                         |
+| `requested_amount`          | numeric     |                                                         |
+| `status`                    | enum        | `PENDING`, `IN_REVIEW`, `APPROVED`, `REJECTED`, `ERROR` |
+| `bank_info`                 | jsonb       | pseudo-anonimizado si es posible                        |
+| `created_at` / `updated_at` | timestamptz |                                                         |
 
 Índices propuestos:
 
@@ -155,22 +155,22 @@ Regla de seguridad (MVP):
 
 #### `banks`
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| `id` | uuid | PK |
-| `name` | varchar |  |
-| `country` | char(2) |  |
-| `code` | varchar | identificador interno |
-| `created_at` | timestamptz |  |
+| Campo        | Tipo        | Notas                 |
+| ------------ | ----------- | --------------------- |
+| `id`         | uuid        | PK                    |
+| `name`       | varchar     |                       |
+| `country`    | char(2)     |                       |
+| `code`       | varchar     | identificador interno |
+| `created_at` | timestamptz |                       |
 
 #### `risk_providers`
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| `id` | uuid | PK |
-| `name` | varchar |  |
-| `country` | char(2) |  |
-| `code` | varchar |  |
+| Campo     | Tipo    | Notas |
+| --------- | ------- | ----- |
+| `id`      | uuid    | PK    |
+| `name`    | varchar |       |
+| `country` | char(2) |       |
+| `code`    | varchar |       |
 
 Estos catálogos se siembran vía seed/migración para datos consistentes (local/CI/demo).
 
@@ -178,29 +178,29 @@ Estos catálogos se siembran vía seed/migración para datos consistentes (local
 
 #### `application_bank_results`
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| `id` | uuid | PK |
-| `application_id` | uuid | FK → `credit_applications.id` |
-| `bank_id` | uuid | FK → `banks.id` |
-| `tenant_id` | uuid | FK → `tenants.id` |
-| `total_debt` | numeric |  |
-| `max_credit_offer` | numeric |  |
-| `raw_response` | jsonb | payload fake del “banco” |
-| `created_at` | timestamptz |  |
+| Campo              | Tipo        | Notas                         |
+| ------------------ | ----------- | ----------------------------- |
+| `id`               | uuid        | PK                            |
+| `application_id`   | uuid        | FK → `credit_applications.id` |
+| `bank_id`          | uuid        | FK → `banks.id`               |
+| `tenant_id`        | uuid        | FK → `tenants.id`             |
+| `total_debt`       | numeric     |                               |
+| `max_credit_offer` | numeric     |                               |
+| `raw_response`     | jsonb       | payload fake del “banco”      |
+| `created_at`       | timestamptz |                               |
 
 #### `application_risk_scores`
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| `id` | uuid | PK |
-| `application_id` | uuid | FK → `credit_applications.id` |
-| `provider_id` | uuid | FK → `risk_providers.id` |
-| `tenant_id` | uuid | FK → `tenants.id` |
-| `score` | numeric | 0–1000 (o similar) |
-| `risk_band` | enum/string | `LOW`, `MEDIUM`, `HIGH` |
-| `raw_response` | jsonb |  |
-| `created_at` | timestamptz |  |
+| Campo            | Tipo        | Notas                         |
+| ---------------- | ----------- | ----------------------------- |
+| `id`             | uuid        | PK                            |
+| `application_id` | uuid        | FK → `credit_applications.id` |
+| `provider_id`    | uuid        | FK → `risk_providers.id`      |
+| `tenant_id`      | uuid        | FK → `tenants.id`             |
+| `score`          | numeric     | 0–1000 (o similar)            |
+| `risk_band`      | enum/string | `LOW`, `MEDIUM`, `HIGH`       |
+| `raw_response`   | jsonb       |                               |
+| `created_at`     | timestamptz |                               |
 
 Estos registros se generan on-demand por el worker usando `faker`, pero se persisten para trazabilidad real.
 
@@ -208,17 +208,17 @@ Estos registros se generan on-demand por el worker usando `faker`, pero se persi
 
 #### `async_jobs`
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| `id` | uuid | PK |
-| `tenant_id` | uuid | FK → `tenants.id` |
-| `type` | enum | `RISK_EVAL`, … |
-| `payload` | jsonb | típicamente `{ application_id, country }` |
-| `status` | enum | `PENDING`, `RUNNING`, `DONE`, `DLQ` |
-| `attempts` | int |  |
-| `last_error` | text |  |
-| `created_at` / `updated_at` | timestamptz |  |
-| `processed_at` | timestamptz | nullable |
+| Campo                       | Tipo        | Notas                                     |
+| --------------------------- | ----------- | ----------------------------------------- |
+| `id`                        | uuid        | PK                                        |
+| `tenant_id`                 | uuid        | FK → `tenants.id`                         |
+| `type`                      | enum        | `RISK_EVAL`, …                            |
+| `payload`                   | jsonb       | típicamente `{ application_id, country }` |
+| `status`                    | enum        | `PENDING`, `RUNNING`, `DONE`, `DLQ`       |
+| `attempts`                  | int         |                                           |
+| `last_error`                | text        |                                           |
+| `created_at` / `updated_at` | timestamptz |                                           |
+| `processed_at`              | timestamptz | nullable                                  |
 
 Índices propuestos:
 
@@ -290,7 +290,7 @@ Componente conceptual: `JobsProcessorService`.
 
 Loop cada X segundos:
 
-1) Selecciona N jobs `PENDING`:
+1. Selecciona N jobs `PENDING`:
 
 ```sql
 SELECT ...
@@ -301,7 +301,7 @@ FOR UPDATE SKIP LOCKED
 LIMIT N;
 ```
 
-2) Para cada job:
+2. Para cada job:
 
 - Marca como `RUNNING` e incrementa `attempts`.
 - Para `RISK_EVAL`:
@@ -327,11 +327,10 @@ Manejo de errores:
   - job a `DLQ` directamente
   - `credit_applications.status = ERROR`
 
-Tradeoffs:
+Tradeoffs pensados en prueba:
 
-- ✅ Simplicidad: una sola fuente de verdad (tabla `async_jobs`).
-- ✅ No requiere infra extra, fácil de correr en cualquier entorno.
-- ❌ A escala, cola en DB limita throughput → migración natural a broker (SQS/Kafka/etc.) manteniendo interfaz.
+- Simplicidad: una sola fuente de verdad (tabla `async_jobs`).
+- Cola en DB limita throughput, migración natural a broker (SQS/Kafka/etc.) manteniendo interfaz.
 
 ### 4.4 Mock data y faker
 
@@ -369,10 +368,6 @@ interface CachePort {
 }
 ```
 
-Implementación actual:
-
-- `InMemoryCacheAdapter` con `Map` + TTL.
-
 Uso previsto:
 
 - Cachear lecturas frecuentes (detalle o listados).
@@ -381,8 +376,8 @@ Uso previsto:
 
 Tradeoffs:
 
-- ✅ No requiere Redis para correr el proyecto (simplifica la prueba).
-- ❌ No compartida entre instancias → en cluster: migrar a Redis y ajustar estrategia de invalidación.
+- Redis no se implementa (simplifica la prueba).
+- Cache in memory no es adaptable a microservicios ya que no comparte el status en cluster, migrar a Redis y ajustar estrategia de invalidación.
 
 ---
 
@@ -405,8 +400,6 @@ Decisión: un solo esquema con `tenant_id` en todas las tablas de negocio.
   - Hay que ser estricto en RBAC y filtros por `tenant_id`.
   - Tenants grandes pueden requerir particionado (por país/tenant/fecha).
 
-Nota: se deja la puerta abierta a RLS o multi-schema; el modelo ayuda porque todas las tablas llevan `tenant_id`.
-
 ### 5.2 Cola en Postgres vs message broker
 
 Motivo (DB queue):
@@ -417,7 +410,7 @@ Motivo (DB queue):
 Limitaciones:
 
 - Throughput/latencia dependen del tamaño de tabla/config DB.
-- A volumen: `PARTITION BY RANGE (fecha)` o por `tenant_id`, o migrar a broker dedicado.
+- Migrar a broker dedicado o cola especializada (kafka, sqs).
 
 ### 5.3 Mock data y faker
 
@@ -428,33 +421,26 @@ Limitaciones:
 ### 5.4 Cache in-memory
 
 - **Decisión**: cache en memoria por simplicidad.
-- **Riesgo**: no compartida entre instancias → lecturas inconsistentes al escalar.
+- **Riesgo**: no compartida entre instancias, lecturas inconsistentes al escalar.
 - **Mitigación**: interfaz `CachePort` lista para adapter Redis.
 
 ### 5.5 PII y logs
 
-`document_id`, `bank_info`, `full_name` son PII.
+`document_id`, `bank_info`, `full_name` son ejemplos de PII.
 
 Estrategia (MVP):
 
 - No loguear documentos completos ni payloads bancarios crudos.
+- Proteccion via Pino, en src/config/logger/logger.config.ts se configuran los posibles campos a censurar en logs, previniendo logs con informacion sensible
 - Loguear IDs técnicos (`application_id`, `job_id`) y hashes parciales si aplica.
 
 Futuro:
 
 - Encriptar columnas sensibles.
-- Políticas de retención por tenant (no cubierto aún en código, pero contemplado).
 
 ---
 
-## 6. Próximos pasos
-
-- **End-to-end básico**: `POST /applications` + trigger + worker + cambio de estado.
-- **Endpoints de lectura**: listado filtrado con RBAC (ADMIN vs AGENT).
-- **Cache**: aplicarla en el listado más “caliente”.
-- **Monitoreo básico**:
-  - Jobs por estado (`PENDING` / `RUNNING` / `DONE` / `DLQ`)
-  - Tiempo promedio de procesamiento por job
+## 6. TL;DR
 
 Con esto, el backend demuestra:
 

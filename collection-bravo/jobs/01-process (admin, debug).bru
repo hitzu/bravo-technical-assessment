@@ -1,0 +1,21 @@
+meta {
+  name: 01-process (admin, debug)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/jobs/process?limit=10
+  body: json
+  auth: inherit
+}
+
+headers {
+  authorization: Bearer {{admin_token}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

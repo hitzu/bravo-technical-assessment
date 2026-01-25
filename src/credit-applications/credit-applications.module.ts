@@ -5,6 +5,7 @@ import { Country } from '../countries/entities/country.entity';
 import { CountryRule } from '../countries/entities/country-rule.entity';
 import { CreditApplicationsController } from './credit-applications.controller';
 import { BankProviderRegistryService } from './bank-providers/bank-provider-registry.service';
+import { CreditApplicationRiskService } from './credit-application-risk.service';
 import { CreditApplication } from './entities/credit-applications.entity';
 import { ApplicationRiskResult } from './entities/application-risk-result.entity';
 import { CreditApplicationsService } from './credit-applications.service';
@@ -26,6 +27,7 @@ import { RiskStrategyRegistryService } from './risk-strategies/risk-strategy-reg
   controllers: [CreditApplicationsController],
   providers: [
     CreditApplicationsService,
+    CreditApplicationRiskService,
     BankProviderRegistryService,
     RiskEvaluatorService,
     RiskStrategyRegistryService,
@@ -33,6 +35,7 @@ import { RiskStrategyRegistryService } from './risk-strategies/risk-strategy-reg
     MxRiskStrategy,
     DefaultRiskStrategy,
   ],
+  exports: [CreditApplicationRiskService],
 })
 export class CreditApplicationsModule { }
 

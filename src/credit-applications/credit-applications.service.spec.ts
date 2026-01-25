@@ -19,12 +19,8 @@ import { EXCEPTION_RESPONSE } from '../config/errors/exception-response.config';
 import type { CreateCreditApplicationDto } from './dto/create-credit-application.dto';
 import type { ListCreditApplicationsQueryDto } from './dto/list-credit-applications.query.dto';
 import { CreditApplicationsService } from './credit-applications.service';
-import type { BankSnapshot } from './constants/risk.types';
-import { APPLICATION_RISK_DECISION } from './constants/risk.types';
-import { BankProviderRegistryService } from './bank-providers/bank-provider-registry.service';
 import { ApplicationRiskResult } from './entities/application-risk-result.entity';
 import { CreditApplication } from './entities/credit-applications.entity';
-import { RiskEvaluatorService } from './risk-evaluator.service';
 
 describe('CreditApplicationsService', () => {
   let service: CreditApplicationsService;
@@ -33,8 +29,6 @@ describe('CreditApplicationsService', () => {
   let tenantFactory: TenantFactory;
   let countryFactory: CountryFactory;
   let creditApplicationFactory: CreditApplicationFactory;
-  let bankProviderRegistryService: { resolve: jest.Mock };
-  let riskEvaluatorService: { evaluateRisk: jest.Mock };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -47,14 +41,6 @@ describe('CreditApplicationsService', () => {
         {
           provide: getRepositoryToken(ApplicationRiskResult),
           useValue: TestDataSource.getRepository(ApplicationRiskResult),
-        },
-        {
-          provide: BankProviderRegistryService,
-          useValue: { resolve: jest.fn() },
-        },
-        {
-          provide: RiskEvaluatorService,
-          useValue: { evaluateRisk: jest.fn() },
         },
       ],
     }).compile();
@@ -69,8 +55,6 @@ describe('CreditApplicationsService', () => {
     tenantFactory = new TenantFactory(TestDataSource);
     countryFactory = new CountryFactory(TestDataSource);
     creditApplicationFactory = new CreditApplicationFactory(TestDataSource);
-    bankProviderRegistryService = module.get(BankProviderRegistryService);
-    riskEvaluatorService = module.get(RiskEvaluatorService);
   });
 
   describe('createApplication', () => {
@@ -89,23 +73,6 @@ describe('CreditApplicationsService', () => {
         monthlyIncome: 0,
         requestedAmount: 0,
       };
-
-      const bankSnapshot: BankSnapshot = {
-        countryCode: country.code,
-        provider: 'TEST',
-        monthlyIncome: 1000,
-        totalDebt: 100,
-        productsCount: 1,
-        generatedAt: new Date().toISOString(),
-      };
-      const bankProvider = { fetchBankInfo: jest.fn().mockResolvedValue(bankSnapshot) };
-      bankProviderRegistryService.resolve.mockReturnValue(bankProvider);
-      riskEvaluatorService.evaluateRisk.mockReturnValue({
-        riskScore: 90,
-        decision: APPLICATION_RISK_DECISION.APPROVE,
-        debtToIncomeRatio: 0.1,
-        rawBankSnapshot: bankSnapshot,
-      });
 
       // Act
       const created = await service.createApplication(
@@ -133,61 +100,7 @@ describe('CreditApplicationsService', () => {
       expect(created.status).toBe(CREDIT_APPLICATION_STATUS.PENDING);
       expect(created.bankInfo).toBeNull();
       expect(persisted).not.toBeNull();
-      expect(bankProvider.fetchBankInfo).toHaveBeenCalledWith(dto.documentId);
-      expect(riskResult).not.toBeNull();
-      expect(riskResult?.tenantId).toBe(tenant.id);
-      expect(riskResult?.applicationId).toBe(created.id);
-      expect(riskResult?.countryId).toBe(country.id);
-      expect(riskResult?.decision).toBe(APPLICATION_RISK_DECISION.APPROVE);
-    });
-
-    it('sets initial status to IN_REVIEW when risk decision is REVIEW', async () => {
-      // Arrange
-      const tenant = await tenantFactory.create();
-      const country = await countryFactory.create({
-        status: COUNTRY_STATUS.ACTIVE,
-        code: 'ES',
-      });
-      const userId = '0d3a3e64-3af4-46c4-9e2d-56c1920fd5a9';
-      const dto: CreateCreditApplicationDto = {
-        countryId: country.id,
-        fullName: 'Jane Doe',
-        documentId: 'DOC-123',
-        monthlyIncome: 1000,
-        requestedAmount: 1000,
-      };
-
-      const bankSnapshot: BankSnapshot = {
-        countryCode: 'ES',
-        provider: 'TEST',
-        monthlyIncome: 1000,
-        totalDebt: 500,
-        productsCount: 1,
-        generatedAt: new Date().toISOString(),
-      };
-      const bankProvider = { fetchBankInfo: jest.fn().mockResolvedValue(bankSnapshot) };
-      bankProviderRegistryService.resolve.mockReturnValue(bankProvider);
-      riskEvaluatorService.evaluateRisk.mockReturnValue({
-        riskScore: 55,
-        decision: APPLICATION_RISK_DECISION.REVIEW,
-        debtToIncomeRatio: 0.5,
-        rawBankSnapshot: bankSnapshot,
-      });
-
-      // Act
-      const created = await service.createApplication(
-        tenant.id,
-        userId,
-        USER_ROLES.AGENT,
-        dto,
-      );
-      const persisted = await creditAppRepo.findOne({
-        where: { id: created.id },
-      });
-
-      // Assert
-      expect(created.status).toBe(CREDIT_APPLICATION_STATUS.IN_REVIEW);
-      expect(persisted?.status).toBe(CREDIT_APPLICATION_STATUS.IN_REVIEW);
+      expect(riskResult).toBeNull();
     });
 
     it('throws BadRequestException when monthlyIncome is negative', async () => {

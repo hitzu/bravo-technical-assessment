@@ -104,6 +104,8 @@ describe('RiskEvaluatorService', () => {
     const application = await creditApplicationFactory.create({
       tenantId: tenant.id,
       countryId: country.id,
+      monthlyIncome: 10_000,
+      requestedAmount: 10_000,
     });
     const snapshot: BankSnapshot = {
       countryCode: 'MX',
@@ -131,6 +133,8 @@ describe('RiskEvaluatorService', () => {
     const application = await creditApplicationFactory.create({
       tenantId: tenant.id,
       countryId: country.id,
+      monthlyIncome: 1_000,
+      requestedAmount: 200_000,
     });
     const snapshot: BankSnapshot = {
       countryCode: 'MX',
