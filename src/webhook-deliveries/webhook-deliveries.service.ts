@@ -1,7 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { FindOptionsWhere, Repository } from 'typeorm';
 
+import type { CachePort } from '../cache/cache.port';
+import { CACHE_PORT } from '../cache/cache.port';
+import { CREDIT_APPLICATION_STATUS } from '../common/types/credit-application-status.type';
 import { CreditApplication } from '../credit-applications/entities/credit-applications.entity';
 import {
   WEBHOOK_DELIVERY_STATUS,
@@ -18,6 +21,8 @@ export class WebhookDeliveriesService {
     private readonly webhookDeliveriesRepository: Repository<WebhookDelivery>,
     @InjectRepository(CreditApplication)
     private readonly creditApplicationsRepository: Repository<CreditApplication>,
+    @Inject(CACHE_PORT)
+    private readonly cache: CachePort,
   ) { }
 
   async createRiskResultDelivery(params: {
@@ -95,6 +100,23 @@ export class WebhookDeliveriesService {
     delivery.deliveredAt = new Date();
 
     return this.webhookDeliveriesRepository.save(delivery);
+  }
+
+  async updateApplicationStatus(params: {
+    applicationId: string;
+    status: CREDIT_APPLICATION_STATUS;
+  }): Promise<void> {
+    const application = await this.creditApplicationsRepository.findOne({
+      where: { id: params.applicationId },
+    });
+
+    if (!application) {
+      throw new NotFoundException('Credit application not found');
+    }
+
+    application.status = params.status;
+    const updated = await this.creditApplicationsRepository.save(application);
+    this.cache.del(`application:${updated.tenantId}:${updated.id}`);
   }
 
   async listDeliveries(params?: {

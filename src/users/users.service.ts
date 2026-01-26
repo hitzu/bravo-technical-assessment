@@ -4,13 +4,17 @@ import { USER_STATUS } from '../common/types/user-status.type';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
-import { UsersRepository } from './users.repository';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(private readonly usersRepository: UsersRepository) { }
+  constructor(
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
+  ) { }
 
   async createUser(dto: CreateUserDto): Promise<User> {
     this.logger.log({ tenantId: dto.tenantId, email: dto.email }, 'Creating user');
@@ -26,11 +30,11 @@ export class UsersService {
   }
 
   async findAllUsers(): Promise<User[]> {
-    return this.usersRepository.findAll();
+    return this.usersRepository.find({ relations: ['tenant'] });
   }
 
   async findUserById(id: string): Promise<User | null> {
-    return this.usersRepository.findById(id);
+    return this.usersRepository.findOne({ where: { id }, relations: ['tenant'] });
   }
 
   async getUserById(id: string): Promise<User> {
@@ -48,7 +52,7 @@ export class UsersService {
   }
 
   async removeUser(id: string): Promise<void> {
-    const ok = await this.usersRepository.softDeleteById(id);
+    const ok = await this.usersRepository.softDelete({ id });
     if (!ok) {
       throw new NotFoundException('User not found');
     }

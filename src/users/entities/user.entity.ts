@@ -1,8 +1,9 @@
-import { Column, Entity, Index, Unique } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne, Unique } from 'typeorm';
 
 import { BaseTimeEntity } from '../../common/entities/base-time.entity';
 import { USER_ROLES } from '../../common/types/user-roles.type';
 import { USER_STATUS } from '../../common/types/user-status.type';
+import { Tenant } from '../../tenants/entities/tenant.entity';
 
 @Entity('users')
 @Unique('ux_users_tenant_email', ['tenantId', 'email'])
@@ -37,5 +38,9 @@ export class User extends BaseTimeEntity {
 
   @Column('timestamptz', { name: 'last_login_at', nullable: true })
   lastLoginAt?: Date | null;
+
+  @ManyToOne(() => Tenant, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'tenant_id' })
+  tenant?: Tenant;
 }
 

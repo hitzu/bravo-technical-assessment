@@ -2,13 +2,29 @@ import 'reflect-metadata';
 
 import { AppDataSource } from '../../config/database/data-source';
 import { COUNTRY_STATUS } from '../../common/types/country-status.type';
+import { USER_ROLES } from '../../common/types/user-roles.type';
+import { USER_STATUS } from '../../common/types/user-status.type';
 import { Country } from '../../countries/entities/country.entity';
 import { CountryRule } from '../../countries/entities/country-rule.entity';
+import { Tenant } from '../../tenants/entities/tenant.entity';
+import { User } from '../../users/entities/user.entity';
 
 type SeedCountryInput = {
   code: string;
   name: string;
   status: COUNTRY_STATUS;
+};
+
+type SeedTenantInput = {
+  name: string;
+};
+
+type SeedUserInput = {
+  tenantId: string;
+  email: string;
+  fullName: string;
+  role: USER_ROLES;
+  status: USER_STATUS;
 };
 
 type SeedCountryRuleInput = {
@@ -36,6 +52,11 @@ const COUNTRIES: SeedCountryInput[] = [
   { code: 'BR', name: 'Brazil', status: COUNTRY_STATUS.ACTIVE },
 ];
 
+const TENANTS: SeedTenantInput[] = [
+  { name: 'Reparadora de Crédito' },
+  { name: 'Préstamos' },
+];
+
 // Minimal configs to test ES/MX strategies out of the box.
 const COUNTRY_RULES: SeedCountryRuleInput[] = [
   {
@@ -60,6 +81,53 @@ const COUNTRY_RULES: SeedCountryRuleInput[] = [
     requestedAmountToMonthlyIncomeReviewMax: 12,
   },
 ];
+
+function slugify(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+async function upsertTenant(seed: SeedTenantInput): Promise<Tenant> {
+  const repo = AppDataSource.getRepository(Tenant);
+  const name = seed.name.trim();
+
+  const existing = await repo.findOne({ where: { name } });
+  if (existing) {
+    existing.name = name;
+    return await repo.save(existing);
+  }
+
+  const created = repo.create({ name });
+  return await repo.save(created);
+}
+
+async function upsertUser(seed: SeedUserInput): Promise<User> {
+  const repo = AppDataSource.getRepository(User);
+
+  const existing = await repo.findOne({
+    where: { tenantId: seed.tenantId, email: seed.email },
+  });
+  if (existing) {
+    existing.fullName = seed.fullName;
+    existing.role = seed.role;
+    existing.status = seed.status;
+    return await repo.save(existing);
+  }
+
+  const created = repo.create({
+    tenantId: seed.tenantId,
+    email: seed.email,
+    fullName: seed.fullName,
+    role: seed.role,
+    status: seed.status,
+  });
+  return await repo.save(created);
+}
 
 async function upsertCountry(seed: SeedCountryInput): Promise<Country> {
   const repo = AppDataSource.getRepository(Country);
@@ -132,6 +200,56 @@ async function upsertCountryRule(seed: SeedCountryRuleInput): Promise<void> {
 async function main(): Promise<void> {
   await AppDataSource.initialize();
   try {
+    const tenants = new Map<string, Tenant>();
+    for (const tenantSeed of TENANTS) {
+      const tenant = await upsertTenant(tenantSeed);
+      tenants.set(tenant.name, tenant);
+    }
+
+    const reparadora = tenants.get('Reparadora de Crédito');
+    const prestamos = tenants.get('Préstamos');
+    if (!reparadora || !prestamos) {
+      throw new Error('Expected tenants to be created before users.');
+    }
+
+    const reparadoraSlug = slugify(reparadora.name);
+    const prestamosSlug = slugify(prestamos.name);
+
+    const users: SeedUserInput[] = [
+      {
+        tenantId: reparadora.id,
+        email: `admin.${reparadoraSlug}@example.com`,
+        fullName: 'José Luis Hernández',
+        role: USER_ROLES.ADMIN,
+        status: USER_STATUS.ACTIVE,
+      },
+      {
+        tenantId: reparadora.id,
+        email: `agent.${reparadoraSlug}@example.com`,
+        fullName: 'María Fernanda García',
+        role: USER_ROLES.AGENT,
+        status: USER_STATUS.ACTIVE,
+      },
+      {
+        tenantId: prestamos.id,
+        email: `admin.${prestamosSlug}@example.com`,
+        fullName: 'Juan Pablo Ramírez',
+        role: USER_ROLES.ADMIN,
+        status: USER_STATUS.ACTIVE,
+      },
+      {
+        tenantId: prestamos.id,
+        email: `agent.${prestamosSlug}@example.com`,
+        fullName: 'Ana Sofía Martínez',
+        role: USER_ROLES.AGENT,
+        status: USER_STATUS.ACTIVE,
+      },
+    ];
+
+    for (const user of users) {
+      await upsertUser(user);
+    }
+
     for (const country of COUNTRIES) {
       await upsertCountry(country);
     }

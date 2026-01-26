@@ -4,6 +4,7 @@ import { Expose } from 'class-transformer';
 import type { User } from '../entities/user.entity';
 import { USER_ROLES } from '../../common/types/user-roles.type';
 import { USER_STATUS } from '../../common/types/user-status.type';
+import type { Tenant } from '../../tenants/entities/tenant.entity';
 
 export class UserResponseDto {
   @Expose()
@@ -60,6 +61,13 @@ export class UserResponseDto {
   })
   lastLoginAt?: Date | null;
 
+  @Expose()
+  @ApiProperty({
+    description: 'Tenant name',
+    example: 'Acme Corp',
+  })
+  tenant?: Tenant;
+
   constructor(user: User) {
     this.id = user.id;
     this.tenantId = user.tenantId;
@@ -69,6 +77,7 @@ export class UserResponseDto {
     this.status = user.status;
     this.scopes = user.scopes ?? null;
     this.lastLoginAt = user.lastLoginAt ?? null;
+    this.tenant = user.tenant;
   }
 }
 
