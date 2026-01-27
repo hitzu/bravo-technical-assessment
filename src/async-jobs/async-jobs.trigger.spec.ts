@@ -2,6 +2,7 @@ import { Repository } from 'typeorm';
 
 import { CountryFactory } from '@factories/country/country.factory';
 import { TenantFactory } from '@factories/tenant/tenant.factory';
+import { UserFactory } from '@factories/user/user.factory';
 import { CREDIT_APPLICATION_STATUS } from '../common/types/credit-application-status.type';
 import { COUNTRY_STATUS } from '../common/types/country-status.type';
 import { AppDataSource as TestDataSource } from '../config/database/data-source';
@@ -46,6 +47,7 @@ describe('async_jobs trigger', () => {
   let creditApplicationsRepo: Repository<CreditApplication>;
   let tenantFactory: TenantFactory;
   let countryFactory: CountryFactory;
+  let userFactory: UserFactory;
 
   beforeEach(async () => {
     await ensureRiskEnqueueTrigger();
@@ -53,11 +55,13 @@ describe('async_jobs trigger', () => {
     creditApplicationsRepo = TestDataSource.getRepository(CreditApplication);
     tenantFactory = new TenantFactory(TestDataSource);
     countryFactory = new CountryFactory(TestDataSource);
+    userFactory = new UserFactory(TestDataSource);
   });
 
   it('enqueues a PENDING RISK_EVAL job after credit application insert', async () => {
     // Arrange
     const tenant = await tenantFactory.create();
+    const user = await userFactory.create({ tenant });
     const country = await countryFactory.create({
       status: COUNTRY_STATUS.ACTIVE,
       code: 'ES',
@@ -67,7 +71,7 @@ describe('async_jobs trigger', () => {
     const application = await creditApplicationsRepo.save(
       creditApplicationsRepo.create({
         tenantId: tenant.id,
-        createdBy: '00000000-0000-0000-0000-000000000001',
+        createdBy: user.id,
         countryId: country.id,
         fullName: 'Jane Doe',
         documentId: 'DOC-123',

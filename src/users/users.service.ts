@@ -52,10 +52,11 @@ export class UsersService {
   }
 
   async removeUser(id: string): Promise<void> {
-    const ok = await this.usersRepository.softDelete({ id });
-    if (!ok) {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) {
       throw new NotFoundException('User not found');
     }
+    await this.usersRepository.softDelete(user.id);
   }
 }
 

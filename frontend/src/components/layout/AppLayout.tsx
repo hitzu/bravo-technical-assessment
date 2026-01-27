@@ -9,7 +9,7 @@ export function AppLayout(props: {
     <AppShell header={{ height: 56 }} padding="md">
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
-          <Text fw={700}>Bravo Credit Console</Text>
+          <Text fw={700}>Bravo technical assessment</Text>
           <Box>{props.headerRight}</Box>
         </Group>
       </AppShell.Header>
@@ -18,4 +18,3 @@ export function AppLayout(props: {
     </AppShell>
   );
 }
-

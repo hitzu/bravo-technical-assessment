@@ -7,20 +7,20 @@ import { AppDataSource as TestDataSource } from '../config/database/data-source'
 import { USER_ROLES } from '../common/types/user-roles.type';
 import { USER_STATUS } from '../common/types/user-status.type';
 import { UserFactory } from '@factories/user/user.factory';
+import { TenantFactory } from '@factories/tenant/tenant.factory';
 import { User } from './entities/user.entity';
-import { UsersRepository } from './users.repository';
 import { UsersService } from './users.service';
 
 describe('UsersService', () => {
   let service: UsersService;
   let userRepo: Repository<User>;
   let userFactory: UserFactory;
+  let tenantFactory: TenantFactory;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
-        UsersRepository,
         {
           provide: getRepositoryToken(User),
           useValue: TestDataSource.getRepository(User),
@@ -31,14 +31,16 @@ describe('UsersService', () => {
     service = module.get<UsersService>(UsersService);
     userRepo = module.get<Repository<User>>(getRepositoryToken(User));
     userFactory = new UserFactory(TestDataSource);
+    tenantFactory = new TenantFactory(TestDataSource);
   });
 
   describe('createUser', () => {
     it('creates user and defaults status to ACTIVE and lastLoginAt to null', async () => {
       // Arrange
-      const userAttrs = await userFactory.make({ role: USER_ROLES.AGENT });
+      const tenant = await tenantFactory.create();
+      const userAttrs = await userFactory.make({ role: USER_ROLES.AGENT, tenant });
       const dto = {
-        tenantId: userAttrs.tenantId,
+        tenantId: tenant.id,
         email: userAttrs.email,
         fullName: userAttrs.fullName,
         role: userAttrs.role,
@@ -61,12 +63,14 @@ describe('UsersService', () => {
 
     it('respects explicit status when provided', async () => {
       // Arrange
+      const tenant = await tenantFactory.create();
       const userAttrs = await userFactory.make({
+        tenant,
         role: USER_ROLES.ADMIN,
         status: USER_STATUS.SUSPENDED,
       });
       const dto = {
-        tenantId: userAttrs.tenantId,
+        tenantId: tenant.id,
         email: userAttrs.email,
         fullName: userAttrs.fullName,
         role: userAttrs.role,
@@ -92,8 +96,9 @@ describe('UsersService', () => {
 
     it('lists existing users', async () => {
       // Arrange
-      const userA = await userFactory.create();
-      const userB = await userFactory.create();
+      const tenant = await tenantFactory.create();
+      const userA = await userFactory.create({ tenant });
+      const userB = await userFactory.create({ tenant });
 
       // Act
       const users = await service.findAllUsers();
@@ -125,8 +130,10 @@ describe('UsersService', () => {
   describe('updateUser', () => {
     it('updates allowed fields', async () => {
       // Arrange
+      const tenant = await tenantFactory.create();
       const user = await userFactory.create({
-        email: 'old@school.edu',
+        tenant,
+        email: 'old@bravocredit.com',
         fullName: 'Old Name',
         status: USER_STATUS.ACTIVE,
       });
@@ -150,7 +157,8 @@ describe('UsersService', () => {
   describe('removeUser', () => {
     it('soft-deletes existing user', async () => {
       // Arrange
-      const user = await userFactory.create();
+      const tenant = await tenantFactory.create();
+      const user = await userFactory.create({ tenant });
 
       // Act
       await service.removeUser(user.id);

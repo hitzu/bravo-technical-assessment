@@ -5,6 +5,7 @@ import type { CreditApplication } from '../entities/credit-applications.entity';
 import type { ApplicationRiskResult } from '../entities/application-risk-result.entity';
 import { CREDIT_APPLICATION_STATUS } from '../../common/types/credit-application-status.type';
 import { ApplicationRiskResultSummaryDto } from './application-risk-result-summary.dto';
+import { UserResponseDto } from '../../users/dto/user-response.dto';
 
 export class CreditApplicationResponseDto {
   @Expose()
@@ -103,6 +104,13 @@ export class CreditApplicationResponseDto {
   })
   updatedAt: Date;
 
+  @Expose()
+  @ApiProperty({
+    description: 'User that created the application',
+    type: UserResponseDto,
+  })
+  user: UserResponseDto;
+
   constructor(application: CreditApplication, riskResult?: ApplicationRiskResult | null) {
     this.id = application.id;
     this.tenantId = application.tenantId;
@@ -123,6 +131,7 @@ export class CreditApplicationResponseDto {
       : null;
     this.createdAt = application.createdAt;
     this.updatedAt = application.updatedAt;
+    this.user = new UserResponseDto(application.user);
   }
 }
 

@@ -4,6 +4,7 @@ import { BaseTimeEntity } from '../../common/entities/base-time.entity';
 import { CREDIT_APPLICATION_STATUS } from '../../common/types/credit-application-status.type';
 import { Country } from '../../countries/entities/country.entity';
 import { Tenant } from '../../tenants/entities/tenant.entity';
+import { User } from '../../users/entities/user.entity';
 
 const numericToNumberTransformer = {
   to(value: number): number {
@@ -58,6 +59,13 @@ export class CreditApplication extends BaseTimeEntity {
 
   @Column('jsonb', { name: 'bank_info', nullable: true })
   bankInfo?: Record<string, unknown> | null;
+
+  @Column('boolean', { name: 'force_risk_failure', default: false })
+  forceRiskFailure!: boolean;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'created_by' })
+  user!: User;
 
   @ManyToOne(() => Tenant, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'tenant_id' })

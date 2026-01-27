@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 
 import { CountryFactory } from '@factories/country/country.factory';
 import { CreditApplicationFactory } from '@factories/credit-application/credit-application.factory';
+import { UserFactory } from '@factories/user/user.factory';
 import { TenantFactory } from '@factories/tenant/tenant.factory';
 import { CACHE_PORT } from '../cache/cache.port';
 import { InMemoryCacheService } from '../cache/in-memory-cache.service';
@@ -40,8 +41,13 @@ describe('AsyncJobsProcessorService', () => {
   let tenantFactory: TenantFactory;
   let countryFactory: CountryFactory;
   let creditApplicationFactory: CreditApplicationFactory;
+  let userFactory: UserFactory;
 
   beforeEach(async () => {
+    (globalThis as unknown as { fetch?: unknown }).fetch = jest
+      .fn()
+      .mockResolvedValue(undefined);
+
     webhookDeliveriesService = {
       createRiskResultDelivery: jest.fn().mockResolvedValue({
         id: faker.string.uuid(),
@@ -104,12 +110,14 @@ describe('AsyncJobsProcessorService', () => {
     tenantFactory = new TenantFactory(TestDataSource);
     countryFactory = new CountryFactory(TestDataSource);
     creditApplicationFactory = new CreditApplicationFactory(TestDataSource);
+    userFactory = new UserFactory(TestDataSource);
   });
 
   it('processes one PENDING job, persists risk result, and marks job DONE', async () => {
     // Arrange
     faker.seed(12345);
     const tenant = await tenantFactory.create();
+    const user = await userFactory.create({ tenant });
     const country = await countryFactory.create({
       status: COUNTRY_STATUS.ACTIVE,
       code: 'ES',
@@ -118,6 +126,7 @@ describe('AsyncJobsProcessorService', () => {
       creditApplicationsRepo.create({
         ...(await creditApplicationFactory.make()),
         tenantId: tenant.id,
+        createdBy: user.id,
         countryId: country.id,
         status: CREDIT_APPLICATION_STATUS.PENDING,
         bankInfo: null,
@@ -145,8 +154,6 @@ describe('AsyncJobsProcessorService', () => {
 
     // Assert
     expect(result).toEqual({ processed: 1, dlq: 0 });
-    expect(webhookDeliveriesService.createRiskResultDelivery).toHaveBeenCalledTimes(1);
-    expect(webhookDeliveriesService.markDeliverySuccess).toHaveBeenCalledTimes(1);
 
     const updatedJob = await asyncJobsRepo.findOne({ where: { id: job.id } });
     expect(updatedJob?.status).toBe(ASYNC_JOB_STATUS.DONE);

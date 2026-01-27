@@ -137,11 +137,10 @@ export function ApplicationsTable(props: {
 
   const rows = (data?.data ?? []).map((a) => (
     <Table.Tr key={a.id}>
-      <Table.Td>{a.id}</Table.Td>
+      <Table.Td>{a.fullName}</Table.Td>
       <Table.Td>{countriesById.get(a.countryId)?.name ?? a.countryId}</Table.Td>
       <Table.Td>{a.status}</Table.Td>
-      <Table.Td>{a.createdBy}</Table.Td>
-      <Table.Td>{new Date(a.createdAt).toLocaleString()}</Table.Td>
+      <Table.Td>{a.user.fullName}</Table.Td>
       <Table.Td>
         <Button size="xs" variant="light" onClick={() => void openDetail(a.id)}>
           Ver detalle
@@ -195,11 +194,10 @@ export function ApplicationsTable(props: {
       <Table striped highlightOnHover withTableBorder withColumnBorders>
         <Table.Thead>
           <Table.Tr>
-            <Table.Th>ID</Table.Th>
+            <Table.Th>Nombre</Table.Th>
             <Table.Th>País</Table.Th>
             <Table.Th>Estado</Table.Th>
-            <Table.Th>CreatedBy</Table.Th>
-            <Table.Th>CreatedAt</Table.Th>
+            <Table.Th>Creado por</Table.Th>
             <Table.Th />
           </Table.Tr>
         </Table.Thead>
@@ -269,13 +267,6 @@ export function ApplicationsTable(props: {
                   Aún no disponible
                 </Text>
               )}
-            </Stack>
-
-            <Stack gap={4} mt="sm">
-              <Text fw={600}>Última entrega webhook</Text>
-              <Text size="sm" c="dimmed">
-                (Placeholder) Se conectará más adelante.
-              </Text>
             </Stack>
           </Stack>
         )}

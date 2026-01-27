@@ -1,3 +1,5 @@
+import type { User } from "./users";
+
 export type UserRole = 'ADMIN' | 'AGENT';
 
 export type UserStatus = 'ACTIVE' | 'SUSPENDED';
@@ -35,6 +37,7 @@ export type CreditApplication = {
   riskResult?: ApplicationRiskResult | null;
   createdAt: string;
   updatedAt: string;
+  user: User;
 };
 
 export type PaginatedResponse<T> = {

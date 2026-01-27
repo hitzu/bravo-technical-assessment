@@ -28,6 +28,13 @@ axiosInstanceWithToken.interceptors.response.use(
         window.location.href = "/login";
       }
     }
+
+    if (axios.isAxiosError(error)) {
+      const backendMsg = (error.response?.data as any)?.message;
+      if (typeof backendMsg === 'string' && backendMsg.trim()) {
+        return Promise.reject(new Error(backendMsg));
+      }
+    }
     return Promise.reject(error);
   }
 );

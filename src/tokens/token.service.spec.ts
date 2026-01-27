@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { AppDataSource as TestDataSource } from '../config/database/data-source';
 import { TOKEN_TYPE } from '../common/types/token-type';
 import { UserFactory } from '@factories/user/user.factory';
+import { TenantFactory } from '@factories/tenant/tenant.factory';
 import { TokenFactory } from '@factories/token/token.factory';
 import { Token } from './entities/token.entity';
 import { TokenService } from './token.service';
@@ -16,6 +17,7 @@ describe('TokenService', () => {
   let userRepo: Repository<User>;
   let userFactory: UserFactory;
   let tokenFactory: TokenFactory;
+  let tenantFactory: TenantFactory;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -37,12 +39,14 @@ describe('TokenService', () => {
     userRepo = module.get<Repository<User>>(getRepositoryToken(User));
     userFactory = new UserFactory(TestDataSource);
     tokenFactory = new TokenFactory(TestDataSource);
+    tenantFactory = new TenantFactory(TestDataSource);
   });
 
   describe('registerToken', () => {
     it('creates token and links user when userId is provided', async () => {
       // Arrange
-      const user = await userFactory.create();
+      const tenant = await tenantFactory.create();
+      const user = await userFactory.create({ tenant });
       const token = `DEV.v1.${user.tenantId}.${user.id}.ADMIN.1700000000`;
 
       // Act
@@ -86,7 +90,8 @@ describe('TokenService', () => {
   describe('findActiveToken', () => {
     it('returns token with user relation when present, otherwise null', async () => {
       // Arrange
-      const user = await userFactory.create();
+      const tenant = await tenantFactory.create();
+      const user = await userFactory.create({ tenant });
       const rawToken = `DEV.v1.${user.tenantId}.${user.id}.ADMIN.1700000002`;
       const tokenEntity = await tokenFactory.makeForUser(user, TOKEN_TYPE.ACCESS);
       tokenEntity.token = rawToken;

@@ -138,9 +138,6 @@ export function UserSelector(props: {
         {props.currentUser.fullName} · {props.currentUser.role} ·{' '}
         {props.currentUser.tenant?.name}
       </Text>
-      <Button variant="light" loading={isLoading} onClick={handleLogout}>
-        Salir
-      </Button>
     </Group>
   );
 }

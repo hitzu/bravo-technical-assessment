@@ -30,19 +30,6 @@ import type {
 import { WebhookDelivery } from './entities/webhook-delivery.entity';
 import { WebhookDeliveriesService } from './webhook-deliveries.service';
 
-function mapDecisionToStatus(decision: unknown): CREDIT_APPLICATION_STATUS {
-  switch (decision) {
-    case APPLICATION_RISK_DECISION.APPROVE:
-      return CREDIT_APPLICATION_STATUS.APPROVED;
-    case APPLICATION_RISK_DECISION.REJECT:
-      return CREDIT_APPLICATION_STATUS.REJECTED;
-    case APPLICATION_RISK_DECISION.REVIEW:
-      return CREDIT_APPLICATION_STATUS.IN_REVIEW;
-    default:
-      return CREDIT_APPLICATION_STATUS.ERROR;
-  }
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -76,13 +63,6 @@ export class WebhookDeliveriesController {
       url,
       payload,
       headers: headerSnapshot,
-    });
-
-    const riskResult = payload['riskResult'];
-    const decision = isRecord(riskResult) ? riskResult['decision'] : undefined;
-    await this.webhookDeliveriesService.updateApplicationStatus({
-      applicationId,
-      status: mapDecisionToStatus(decision),
     });
 
     return this.webhookDeliveriesService.markDeliverySuccess({

@@ -25,7 +25,7 @@ export class UserFactory extends Factory<User> {
   protected attrs(): FactorizedAttrs<User> {
     return {
       tenantId: faker.string.uuid(),
-      email: faker.internet.email({ provider: 'school.edu' }).toLowerCase(),
+      email: faker.internet.email({ provider: 'bravocredit.com' }).toLowerCase(),
       fullName: faker.person.fullName(),
       role: faker.helpers.arrayElement<USER_ROLES>(
         Object.values(USER_ROLES),

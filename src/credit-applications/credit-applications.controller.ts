@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -26,6 +27,7 @@ import { CreditApplicationResponseDto } from './dto/credit-application-response.
 import { ListCreditApplicationsQueryDto } from './dto/list-credit-applications.query.dto';
 import { ListCreditApplicationsResponseDto } from './dto/list-credit-applications-response.dto';
 import { UpdateCreditApplicationStatusDto } from './dto/update-credit-application-status.dto';
+import { EXCEPTION_RESPONSE } from '../config/errors/exception-response.config';
 
 @ApiTags('Credit Applications')
 @Controller('applications')
@@ -48,6 +50,11 @@ export class CreditApplicationsController {
       { tenantId: authUser.tenantId, userId: authUser.userId },
       'Creating credit application',
     );
+
+    if (authUser.tenantId !== dto.tenantId) {
+      throw new ForbiddenException(EXCEPTION_RESPONSE.TENANT_ID_MISMATCH);
+    }
+
     const created = await this.creditApplicationsService.createApplication(
       authUser.tenantId,
       authUser.userId,
@@ -88,6 +95,7 @@ export class CreditApplicationsController {
     @AuthUser() authUser: AuthUserContext,
     @Param('id', new ParseUUIDPipe()) id: string,
   ): Promise<CreditApplicationResponseDto> {
+    this.logger.log('¿entro aqio? jajjadsaqwe Getting application detail', id);
     const result = await this.creditApplicationsService.getApplicationWithLatestRiskResult(
       authUser.tenantId,
       authUser.userId,

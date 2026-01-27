@@ -9,6 +9,7 @@ import { WebhookDeliveriesService } from '../webhook-deliveries/webhook-deliveri
 import { AsyncJob } from './entities/async-job.entity';
 import { ASYNC_JOB_STATUS } from './types/async-job-status.type';
 import { ASYNC_JOB_TYPE } from './types/async-job-type.type';
+import { CREDIT_APPLICATION_STATUS } from '../common/types/credit-application-status.type';
 
 const MAX_ATTEMPTS = 2;
 
@@ -24,6 +25,7 @@ type AsyncJobRow = {
   updatedAt: Date;
   deletedAt: Date | null;
   processedAt: Date | null;
+  forceRiskFailure: boolean;
 };
 
 @Injectable()
@@ -144,6 +146,12 @@ export class AsyncJobsProcessorService {
         return { outcome: 'dlq' };
       }
 
+      if (application.forceRiskFailure) {
+        await this.creditApplicationsRepository.update(application.id, { status: CREDIT_APPLICATION_STATUS.ERROR });
+        await this.markJobDlq(jobId, 'Force risk failure');
+        return { outcome: 'dlq' };
+      }
+
       const existingRiskResult =
         await this.applicationRiskResultsRepository.findOne({
           where: { tenantId, applicationId: application.id },
@@ -157,34 +165,36 @@ export class AsyncJobsProcessorService {
           application.id,
         )).riskResult;
 
-      const url = `/mock/partner/webhooks/applications/${application.id}/risk-updated`;
-      const delivery = await this.webhookDeliveriesService.createRiskResultDelivery({
-        tenantId,
-        applicationId: application.id,
-        url,
-        payload: {
-          tenantId,
-          applicationId: application.id,
-          riskResult: {
-            id: riskResult.id,
-            createdAt: riskResult.createdAt,
-            debtToIncomeRatio: riskResult.debtToIncomeRatio,
-            riskScore: riskResult.riskScore,
-            decision: riskResult.decision,
-            rawBankSnapshot: riskResult.rawBankSnapshot,
-          },
-        },
-        headers: {
-          source: 'async_jobs',
-          jobType: type,
-          jobId,
-        },
-      });
+      const url = `http://localhost:3000/mock/partner/webhooks/applications/${application.id}/risk-updated`;
+      // const delivery = await this.webhookDeliveriesService.createRiskResultDelivery({
+      //   tenantId,
+      //   applicationId: application.id,
+      //   url,
+      //   payload: {
+      //     tenantId,
+      //     applicationId: application.id,
+      //     riskResult: {
+      //       id: riskResult.id,
+      //       createdAt: riskResult.createdAt,
+      //       debtToIncomeRatio: riskResult.debtToIncomeRatio,
+      //       riskScore: riskResult.riskScore,
+      //       decision: riskResult.decision,
+      //       rawBankSnapshot: riskResult.rawBankSnapshot,
+      //     },
+      //   },
+      //   headers: {
+      //     source: 'async_jobs',
+      //     jobType: type,
+      //     jobId,
+      //   },
+      // });
 
-      await this.webhookDeliveriesService.markDeliverySuccess({
-        deliveryId: delivery.id,
-        responseStatusCode: 200,
-        responseBody: { ok: true },
+      fetch(url, {
+        method: 'POST',
+        body: null,
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
 
       await this.asyncJobsRepository.update(

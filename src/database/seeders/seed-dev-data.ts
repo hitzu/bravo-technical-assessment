@@ -45,11 +45,11 @@ type SeedCountryRuleInput = {
 
 const COUNTRIES: SeedCountryInput[] = [
   { code: 'ES', name: 'Spain', status: COUNTRY_STATUS.ACTIVE },
-  { code: 'PT', name: 'Portugal', status: COUNTRY_STATUS.ACTIVE },
-  { code: 'IT', name: 'Italy', status: COUNTRY_STATUS.ACTIVE },
+  { code: 'PT', name: 'Portugal', status: COUNTRY_STATUS.INACTIVE },
+  { code: 'IT', name: 'Italy', status: COUNTRY_STATUS.INACTIVE },
   { code: 'MX', name: 'Mexico', status: COUNTRY_STATUS.ACTIVE },
-  { code: 'CO', name: 'Colombia', status: COUNTRY_STATUS.ACTIVE },
-  { code: 'BR', name: 'Brazil', status: COUNTRY_STATUS.ACTIVE },
+  { code: 'CO', name: 'Colombia', status: COUNTRY_STATUS.INACTIVE },
+  { code: 'BR', name: 'Brazil', status: COUNTRY_STATUS.INACTIVE },
 ];
 
 const TENANTS: SeedTenantInput[] = [

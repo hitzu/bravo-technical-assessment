@@ -20,6 +20,7 @@ import { CreditApplication } from './entities/credit-applications.entity';
 import type { CreateCreditApplicationDto } from './dto/create-credit-application.dto';
 import type { ListCreditApplicationsQueryDto } from './dto/list-credit-applications.query.dto';
 import { Country } from '../countries/entities/country.entity';
+import { COUNTRY_STATUS } from '../common/types/country-status.type';
 
 type ApplicationDetail = {
   application: CreditApplication;
@@ -37,6 +38,8 @@ export class CreditApplicationsService {
     private readonly creditApplicationsRepository: Repository<CreditApplication>,
     @InjectRepository(ApplicationRiskResult)
     private readonly applicationRiskResultsRepository: Repository<ApplicationRiskResult>,
+    @InjectRepository(Country)
+    private readonly countriesRepository: Repository<Country>,
     @Inject(CACHE_PORT)
     private readonly cache: CachePort,
   ) { }
@@ -55,41 +58,32 @@ export class CreditApplicationsService {
       throw new BadRequestException('requestedAmount must be >= 0');
     }
 
-    const saved = await this.creditApplicationsRepository.manager.transaction(
-      async (manager) => {
-        const creditApplicationsRepository = manager.getRepository(CreditApplication);
-        const countriesRepository = manager.getRepository(Country);
-        const entity = creditApplicationsRepository.create({
-          tenantId,
-          createdBy: userId,
-          countryId: dto.countryId,
-          fullName: dto.fullName,
-          documentId: dto.documentId,
-          monthlyIncome: dto.monthlyIncome,
-          requestedAmount: dto.requestedAmount,
-          status: CREDIT_APPLICATION_STATUS.PENDING,
-          bankInfo: null,
-        });
+    const country = await this.countriesRepository.findOne({
+      where: { id: dto.countryId },
+    });
 
-        const created = await creditApplicationsRepository.save(entity);
-        const country = await countriesRepository.findOne({
-          where: { id: created.countryId },
-        });
+    if (!country || country.status !== COUNTRY_STATUS.ACTIVE) {
+      throw new BadRequestException(EXCEPTION_RESPONSE.INVALID_COUNTRY);
+    }
 
-        if (!country) {
-          throw new BadRequestException('Invalid countryId');
-        }
+    const entity = this.creditApplicationsRepository.create({
+      tenantId,
+      createdBy: userId,
+      countryId: dto.countryId,
+      fullName: dto.fullName,
+      documentId: dto.documentId,
+      monthlyIncome: dto.monthlyIncome,
+      requestedAmount: dto.requestedAmount,
+      status: CREDIT_APPLICATION_STATUS.PENDING,
+      bankInfo: null,
+      forceRiskFailure: dto.forceRiskFailure,
+    });
 
-        return created;
-      },
-    );
+    await this.creditApplicationsRepository.save(entity);
 
-    this.logger.log(
-      { applicationId: saved.id, tenantId, createdBy: userId },
-      'Credit application created',
-    );
 
-    return saved;
+
+    return this.getApplication(tenantId, userId, role, entity.id);
   }
 
   async listApplications(
@@ -123,6 +117,7 @@ export class CreditApplicationsService {
 
     const [data, total] = await this.creditApplicationsRepository.findAndCount({
       where,
+      relations: ['user'],
       order: { createdAt: 'DESC' },
       skip,
       take,
@@ -146,6 +141,7 @@ export class CreditApplicationsService {
 
     const application = await this.creditApplicationsRepository.findOne({
       where: { id, tenantId },
+      relations: ['user'],
     });
 
     if (!application) {
@@ -165,6 +161,7 @@ export class CreditApplicationsService {
     role: AuthUserRole,
     id: string,
   ): Promise<ApplicationDetail> {
+
     const cacheKey = this.buildApplicationDetailCacheKey(tenantId, id);
     const cached = this.cache.get<ApplicationDetail>(cacheKey);
     if (cached !== undefined) {
@@ -179,11 +176,14 @@ export class CreditApplicationsService {
       return cached;
     }
 
+
     const application = await this.getApplication(tenantId, userId, role, id);
+
     const riskResult = await this.applicationRiskResultsRepository.findOne({
       where: { tenantId, applicationId: application.id },
       order: { createdAt: 'DESC' },
     });
+
 
     const detail: ApplicationDetail = { application, riskResult };
     this.cache.set(cacheKey, detail, TTL_APPLICATION_DETAIL_MS);
@@ -216,7 +216,7 @@ export class CreditApplicationsService {
       { applicationId: updated.id, tenantId, status: updated.status },
       'Credit application status updated',
     );
-    // NOTE: In production this would be backed by Redis using the same CachePort interface.
+
     this.cache.del(this.buildApplicationDetailCacheKey(tenantId, updated.id));
     return updated;
   }

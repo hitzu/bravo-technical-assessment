@@ -24,8 +24,19 @@ export function App() {
   );
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const headerRight = (
+    <Stack gap="sm">
+      <UserSelector
+        mode="header"
+        currentUser={currentUser}
+        onLoggedIn={(u) => setCurrentUser(u)}
+        onLoggedOut={() => setCurrentUser(null)}
+      />
+    </Stack>
+  );
+
   return (
-    <AppLayout>
+    <AppLayout headerRight={headerRight}>
       <Stack gap="md">
         <UserSelector
           mode="page"

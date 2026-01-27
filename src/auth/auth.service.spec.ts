@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { UserFactory } from '@factories/user/user.factory';
+import { TenantFactory } from '@factories/tenant/tenant.factory';
 import { TOKEN_TYPE } from '../common/types/token-type';
 import { USER_ROLES } from '../common/types/user-roles.type';
 import { AppDataSource as TestDataSource } from '../config/database/data-source';
@@ -12,7 +13,6 @@ import { Token } from '../tokens/entities/token.entity';
 import { TokenService } from '../tokens/token.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { User } from '../users/entities/user.entity';
-import { UsersRepository } from '../users/users.repository';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 
@@ -21,13 +21,13 @@ describe('AuthService (dev-only)', () => {
   let userRepo: Repository<User>;
   let tokenRepo: Repository<Token>;
   let userFactory: UserFactory;
+  let tenantFactory: TenantFactory;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         UsersService,
-        UsersRepository,
         TokenService,
         {
           provide: getRepositoryToken(User),
@@ -44,14 +44,16 @@ describe('AuthService (dev-only)', () => {
     userRepo = module.get<Repository<User>>(getRepositoryToken(User));
     tokenRepo = module.get<Repository<Token>>(getRepositoryToken(Token));
     userFactory = new UserFactory(TestDataSource);
+    tenantFactory = new TenantFactory(TestDataSource);
   });
 
   describe('signup', () => {
     it('creates user and registers issued ACCESS token', async () => {
       // Arrange
-      const userAttrs = await userFactory.make({ role: USER_ROLES.ADMIN });
+      const tenant = await tenantFactory.create();
+      const userAttrs = await userFactory.make({ role: USER_ROLES.ADMIN, tenant });
       const dto: CreateUserDto = {
-        tenantId: userAttrs.tenantId,
+        tenantId: tenant.id,
         email: userAttrs.email,
         fullName: userAttrs.fullName,
         role: userAttrs.role,
@@ -81,7 +83,9 @@ describe('AuthService (dev-only)', () => {
   describe('login', () => {
     it('logs in requested user and registers issued ACCESS token', async () => {
       // Arrange
+      const tenant = await tenantFactory.create();
       const user = await userFactory.create({
+        tenant,
         role: USER_ROLES.AGENT,
       });
 
@@ -100,11 +104,16 @@ describe('AuthService (dev-only)', () => {
     });
 
     it('when userId is omitted, picks a random existing user', async () => {
+
+      const tenant = await tenantFactory.create();
+
       // Arrange
       const userA = await userFactory.create({
+        tenant,
         role: USER_ROLES.AGENT,
       });
       const userB = await userFactory.create({
+        tenant,
         role: USER_ROLES.ADMIN,
       });
 

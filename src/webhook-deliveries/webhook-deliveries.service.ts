@@ -11,6 +11,22 @@ import {
   WEBHOOK_DELIVERY_TYPE,
   WebhookDelivery,
 } from './entities/webhook-delivery.entity';
+import { EXCEPTION_RESPONSE } from '../config/errors/exception-response.config';
+import { APPLICATION_RISK_DECISION } from '../credit-applications/constants/risk.types';
+import { ApplicationRiskResult } from '../credit-applications/entities/application-risk-result.entity';
+
+function mapDecisionToStatus(decision: unknown): CREDIT_APPLICATION_STATUS {
+  switch (decision) {
+    case APPLICATION_RISK_DECISION.APPROVE:
+      return CREDIT_APPLICATION_STATUS.APPROVED;
+    case APPLICATION_RISK_DECISION.REJECT:
+      return CREDIT_APPLICATION_STATUS.REJECTED;
+    case APPLICATION_RISK_DECISION.REVIEW:
+      return CREDIT_APPLICATION_STATUS.IN_REVIEW;
+    default:
+      return CREDIT_APPLICATION_STATUS.ERROR;
+  }
+}
 
 @Injectable()
 export class WebhookDeliveriesService {
@@ -21,6 +37,8 @@ export class WebhookDeliveriesService {
     private readonly webhookDeliveriesRepository: Repository<WebhookDelivery>,
     @InjectRepository(CreditApplication)
     private readonly creditApplicationsRepository: Repository<CreditApplication>,
+    @InjectRepository(ApplicationRiskResult)
+    private readonly applicationRiskResultsRepository: Repository<ApplicationRiskResult>,
     @Inject(CACHE_PORT)
     private readonly cache: CachePort,
   ) { }
@@ -67,8 +85,21 @@ export class WebhookDeliveriesService {
     });
 
     if (!application) {
-      throw new NotFoundException('Credit application not found');
+      throw new NotFoundException(EXCEPTION_RESPONSE.CREDIT_APPLICATION_NOT_FOUND);
     }
+
+    const riskResult = await this.applicationRiskResultsRepository.findOne({
+      where: { applicationId: params.applicationId },
+    });
+
+    if (!riskResult) {
+      throw new NotFoundException(EXCEPTION_RESPONSE.APPLICATION_RISK_RESULT_NOT_FOUND);
+    }
+
+    this.updateApplicationStatus({
+      applicationId: params.applicationId,
+      status: mapDecisionToStatus(riskResult.decision),
+    })
 
     return this.createRiskResultDelivery({
       tenantId: application.tenantId,

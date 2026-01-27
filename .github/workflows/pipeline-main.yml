@@ -62,9 +62,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: pnpm run build
-
       - name: Run unit tests
         env:
           NODE_ENV: test
@@ -75,11 +72,61 @@ jobs:
           DB_NAME: ${{ env.DB_NAME }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: pnpm run test
+
+  build:
+    name: build
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NODE_VERSION: 22
+      PNPM_VERSION: 9
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node (+ pnpm cache)
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build deployable
+        run: pnpm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployable-dist
+          path: dist
+          if-no-files-found: error
+
   deploy:
     name: deploy
-    needs: test
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: aqui va el deploy de kubernetes
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deployable-dist
+          path: dist
+
+      - name: Inspect artifact
+        run: ls -R dist
+
+      - name: kubernetes deploy here
         run: echo "kubernetes deploy here"

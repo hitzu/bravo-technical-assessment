@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsString, IsUUID, Length, Min } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsNumber, IsString, IsUUID, Length, Min } from 'class-validator';
 
 export class CreateCreditApplicationDto {
   @ApiProperty({
@@ -9,6 +9,14 @@ export class CreateCreditApplicationDto {
   @IsNotEmpty()
   @IsUUID()
   countryId!: string;
+
+  @ApiProperty({
+    description: 'Tenant identifier (UUID)',
+    example: '0d3a3e64-3af4-46c4-9e2d-56c1920fd5a9',
+  })
+  @IsNotEmpty()
+  @IsUUID()
+  tenantId!: string;
 
   @ApiProperty({
     description: 'Applicant full name',
@@ -45,5 +53,13 @@ export class CreateCreditApplicationDto {
   @IsNumber()
   @Min(0)
   requestedAmount!: number;
+
+  @ApiProperty({
+    description: 'Force risk failure',
+    example: false,
+  })
+  @IsNotEmpty()
+  @IsBoolean()
+  forceRiskFailure!: boolean;
 }
 

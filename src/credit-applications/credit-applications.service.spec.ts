@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 
 import { ApplicationRiskResultFactory } from '@factories/application-risk-result/application-risk-result.factory';
 import { CreditApplicationFactory } from '@factories/credit-application/credit-application.factory';
+import { UserFactory } from '@factories/user/user.factory';
 import { CountryFactory } from '@factories/country/country.factory';
 import { TenantFactory } from '@factories/tenant/tenant.factory';
 import type { AuthUserRole } from '../auth/types/auth-user-context';
@@ -25,6 +26,7 @@ import type { ListCreditApplicationsQueryDto } from './dto/list-credit-applicati
 import { CreditApplicationsService } from './credit-applications.service';
 import { ApplicationRiskResult } from './entities/application-risk-result.entity';
 import { CreditApplication } from './entities/credit-applications.entity';
+import { Country } from '../countries/entities/country.entity';
 
 describe('CreditApplicationsService', () => {
   let service: CreditApplicationsService;
@@ -34,6 +36,7 @@ describe('CreditApplicationsService', () => {
   let countryFactory: CountryFactory;
   let creditApplicationFactory: CreditApplicationFactory;
   let applicationRiskResultFactory: ApplicationRiskResultFactory;
+  let userFactory: UserFactory;
   let cache: CachePort;
 
   beforeEach(async () => {
@@ -47,6 +50,10 @@ describe('CreditApplicationsService', () => {
         {
           provide: getRepositoryToken(ApplicationRiskResult),
           useValue: TestDataSource.getRepository(ApplicationRiskResult),
+        },
+        {
+          provide: getRepositoryToken(Country),
+          useValue: TestDataSource.getRepository(Country),
         },
         {
           provide: CACHE_PORT,
@@ -66,6 +73,7 @@ describe('CreditApplicationsService', () => {
     countryFactory = new CountryFactory(TestDataSource);
     creditApplicationFactory = new CreditApplicationFactory(TestDataSource);
     applicationRiskResultFactory = new ApplicationRiskResultFactory(TestDataSource);
+    userFactory = new UserFactory(TestDataSource);
     cache = module.get<CachePort>(CACHE_PORT);
   });
 
@@ -76,7 +84,8 @@ describe('CreditApplicationsService', () => {
       const country = await countryFactory.create({
         status: COUNTRY_STATUS.ACTIVE,
       });
-      const userId = '0d3a3e64-3af4-46c4-9e2d-56c1920fd5a9';
+      const user = await userFactory.create({ tenant });
+      const userId = user.id;
 
       const dto: CreateCreditApplicationDto = {
         countryId: country.id,
@@ -84,6 +93,8 @@ describe('CreditApplicationsService', () => {
         documentId: 'DOC-123',
         monthlyIncome: 0,
         requestedAmount: 0,
+        forceRiskFailure: false,
+        tenantId: tenant.id,
       };
 
       // Act
@@ -125,6 +136,8 @@ describe('CreditApplicationsService', () => {
         documentId: 'DOC-123',
         monthlyIncome: -1,
         requestedAmount: 100,
+        tenantId: tenant.id,
+        forceRiskFailure: false,
       };
 
       // Act / Assert
@@ -148,6 +161,8 @@ describe('CreditApplicationsService', () => {
         documentId: 'DOC-123',
         monthlyIncome: 100,
         requestedAmount: -1,
+        tenantId: tenant.id,
+        forceRiskFailure: false,
       };
 
       // Act / Assert
@@ -171,6 +186,8 @@ describe('CreditApplicationsService', () => {
         documentId: 'DOC-123',
         monthlyIncome: 100,
         requestedAmount: 100,
+        tenantId: tenant.id,
+        forceRiskFailure: false,
       };
       const invalidRole = 'HACKER' as unknown as AuthUserRole;
 
@@ -253,8 +270,10 @@ describe('CreditApplicationsService', () => {
       // Arrange
       const tenant = await tenantFactory.create();
       const country = await countryFactory.create();
-      const userA = '00000000-0000-0000-0000-0000000000aa';
-      const userB = '00000000-0000-0000-0000-0000000000bb';
+      const userAEntity = await userFactory.create({ tenant });
+      const userBEntity = await userFactory.create({ tenant });
+      const userA = userAEntity.id;
+      const userB = userBEntity.id;
 
       const mine = await creditApplicationFactory.create({
         tenantId: tenant.id,
@@ -372,10 +391,11 @@ describe('CreditApplicationsService', () => {
       // Arrange
       const tenant = await tenantFactory.create();
       const country = await countryFactory.create();
+      const appOwner = await userFactory.create({ tenant });
       const app = await creditApplicationFactory.create({
         tenantId: tenant.id,
         countryId: country.id,
-        createdBy: '00000000-0000-0000-0000-0000000000aa',
+        createdBy: appOwner.id,
       });
 
       // Act
@@ -394,7 +414,8 @@ describe('CreditApplicationsService', () => {
       // Arrange
       const tenant = await tenantFactory.create();
       const country = await countryFactory.create();
-      const userId = '00000000-0000-0000-0000-0000000000aa';
+      const user = await userFactory.create({ tenant });
+      const userId = user.id;
       const app = await creditApplicationFactory.create({
         tenantId: tenant.id,
         countryId: country.id,
@@ -417,17 +438,19 @@ describe('CreditApplicationsService', () => {
       // Arrange
       const tenant = await tenantFactory.create();
       const country = await countryFactory.create();
+      const appOwner = await userFactory.create({ tenant });
+      const anotherAgent = await userFactory.create({ tenant });
       const app = await creditApplicationFactory.create({
         tenantId: tenant.id,
         countryId: country.id,
-        createdBy: '00000000-0000-0000-0000-0000000000aa',
+        createdBy: appOwner.id,
       });
 
       // Act / Assert
       await expect(
         service.getApplication(
           tenant.id,
-          '00000000-0000-0000-0000-0000000000bb',
+          anotherAgent.id,
           USER_ROLES.AGENT,
           app.id,
         ),
@@ -555,7 +578,8 @@ describe('CreditApplicationsService', () => {
       // Arrange
       const tenant = await tenantFactory.create();
       const country = await countryFactory.create();
-      const userId = '00000000-0000-0000-0000-0000000000aa';
+      const user = await userFactory.create({ tenant });
+      const userId = user.id;
       const app = await creditApplicationFactory.create({
         tenantId: tenant.id,
         countryId: country.id,
@@ -595,7 +619,8 @@ describe('CreditApplicationsService', () => {
       // Arrange
       const tenant = await tenantFactory.create();
       const country = await countryFactory.create();
-      const userId = '00000000-0000-0000-0000-0000000000aa';
+      const user = await userFactory.create({ tenant });
+      const userId = user.id;
       const app = await creditApplicationFactory.create({
         tenantId: tenant.id,
         countryId: country.id,

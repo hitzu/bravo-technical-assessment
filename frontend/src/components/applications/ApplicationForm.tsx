@@ -17,7 +17,7 @@ import {
   listCountries,
   listTenants,
 } from '../../api/services';
-import type { Country, Tenant } from '../../api/types';
+import type { Country, ErrorResponse, Tenant } from '../../api/types';
 import type { User } from '../../api/types';
 
 type FormValues = {
@@ -119,20 +119,22 @@ export function ApplicationForm(props: {
       setIsSubmitting(true);
       await createApplication({
         countryId: values.countryId,
+        tenantId: values.tenantId, // plenamente intencional para demostrar la intención multi-tenant
         fullName: values.fullName.trim(),
         documentId: values.documentId.trim(),
         monthlyIncome,
         requestedAmount,
+        forceRiskFailure: values.forceRiskFailure,
       });
 
-      form.reset();
       showNotification({
         title: 'Solicitud creada',
         message: 'Solicitud creada. Se ha encolado un job de riesgo.',
         color: 'green',
       });
       props.onCreated();
-    } catch (err) {
+    } catch (err: unknown | ErrorResponse) {
+      console.log('qweqweasdqweasd', (err as ErrorResponse).message);
       showNotification({
         title: 'Error creando solicitud',
         message: err instanceof Error ? err.message : 'Error desconocido',

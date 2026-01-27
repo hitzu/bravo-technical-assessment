@@ -1,0 +1,20 @@
+meta {
+  name: receive notification risk response
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/mock/partner/webhooks/applications/:applicationId/risk-updated
+  body: none
+  auth: inherit
+}
+
+params:path {
+  applicationId: 9e494885-a6b6-4d8d-836e-bc5aacebe880
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
