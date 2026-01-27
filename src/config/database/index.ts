@@ -18,7 +18,7 @@ export const getTypeOrmConfig = (): TypeOrmModuleOptions => {
 
   const defaults = {
     host: 'localhost',
-    port: isTest ? 57435 : 57434,
+    port: isTest ? 57433 : 57432,
     username: 'postgres',
     password: 'postgres',
     database: isTest ? 'bravo_test' : 'bravo_dev',

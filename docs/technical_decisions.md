@@ -7,12 +7,8 @@ Este documento explica **por qué** el proyecto está construido como está, y q
 - **NestJS por módulos**: el backend está separado en módulos de dominio (por ejemplo: `credit-applications`, `async-jobs`, `countries`, `tenants`, `webhook-deliveries`, `auth`).
 - **Controllers vs Services**:
   - **Controllers** exponen endpoints HTTP y delegan la lógica.
-  - **Services** contienen la lógica de negocio y coordinan repositorios/servicios auxiliares.
-- **Persistencia con TypeORM**:
-  - Cada tabla tiene su **Entity** y se accede via `Repository`.
-  - Las **migraciones** definen la estructura real de la DB y algunos comportamientos (por ejemplo triggers).
-
-No es una arquitectura hexagonal “pura”, pero sí hay **separación razonable**:
+  - **Services** contienen la lógica de negocio y coordinan repositorios/serv°
+    No es una arquitectura hexagonal “pura”, pero sí hay **separación razonable**:
 - Infra (DB/TypeORM) aislada en repositorios.
 - Lógica de negocio en servicios.
 - “Puertos” puntuales (por ejemplo `CachePort`) para evitar acoplamiento fuerte a una tecnología concreta.
@@ -51,6 +47,7 @@ Reglas principales:
 ### 2.4 Por qué `/users` es público (solo demo)
 
 `GET /users` está público para que el revisor pueda:
+
 - listar usuarios rápidamente,
 - elegir uno en el frontend,
 - y hacer `POST /auth/login` sin fricción.
@@ -80,6 +77,7 @@ El worker (`AsyncJobsProcessorService`) toma jobs pendientes con:
 Esto habilita correr **N workers** en paralelo sin pisarse: cada worker “bloquea” filas distintas.
 
 Estados de job:
+
 - `PENDING`: listo para procesar.
 - `RUNNING`: tomado por un worker (se incrementa `attempts`).
 - `DONE`: procesado y marcado con `processed_at`.
@@ -88,10 +86,12 @@ Estados de job:
 ### 3.3 Por qué Postgres “como cola”
 
 Tradeoff intencional para una prueba técnica:
+
 - **Menos infraestructura** (no Rabbit/Kafka/BullMQ/Redis solo para jobs).
 - Un solo deploy (DB + API) y el flujo es muy fácil de auditar en tablas.
 
 No es el patrón ideal para volúmenes masivos “de verdad”, pero es perfecto para demostrar:
+
 - triggers,
 - idempotencia básica por filas,
 - paralelismo con SKIP LOCKED,
@@ -107,6 +107,7 @@ En vez de meter `if country == 'MX' ...` por todo el código, se usa una **estra
 - Cada estrategia implementa `evaluate(...)` y devuelve métricas + decisión.
 
 Países implementados hoy (para el “core” del reto):
+
 - **ES**: reglas basadas principalmente en DTI; y un “hook” opcional con `country_rules.requested_amount_review_threshold`.
 - **MX** y **PT**: reglas simplificadas basadas en dos ratios:
   - DTI (deuda/ingreso del banco mock).
@@ -119,16 +120,19 @@ Nota: **MX y PT hoy comparten los mismos thresholds** (intencionalmente) para de
 `BankProviderRegistryService` resuelve un “proveedor” por país (mock) y devuelve un `bankSnapshot` usado por el motor.
 
 Esto separa claramente:
+
 - “cómo obtengo datos del banco” (provider)
 - “cómo evalúo el riesgo” (strategy)
 
 ### 4.3 `country_rules` para tunear sin tocar código
 
 Existe una tabla `country_rules` versionada y con flags de “activa” para:
+
 - ajustar umbrales (DTI, ratios, mínimos),
 - y permitir que la estrategia use esos valores sin recompilar.
 
 **Estado actual**:
+
 - el evaluador pasa la regla activa a la estrategia,
 - y **ES ya usa** `requested_amount_review_threshold` para degradar `APPROVE → REVIEW` cuando aplica,
 - mientras que otras estrategias hoy ignoran algunos campos (quedaron como base para iteraciones futuras).
@@ -140,6 +144,7 @@ Existe una tabla `country_rules` versionada y con flags de “activa” para:
 `CachePort` es una interfaz mínima (`get/set/del/reset`). Hoy hay un adapter in-memory (`InMemoryCacheService`).
 
 ¿Para qué sirve esto?
+
 - La lógica de negocio no depende de Redis/Memory directamente.
 - En el futuro se puede implementar `CachePort` con Redis sin cambiar el resto del código.
 
@@ -152,6 +157,7 @@ Existe una tabla `country_rules` versionada y con flags de “activa” para:
 ### 5.3 Invalidación
 
 Invalidación (simple) basada en escrituras:
+
 - Al crear un tenant se borra `tenants:all`.
 - Al persistir un riesgo (`CreditApplicationRiskService`) se borra `application:<tenantId>:<applicationId>`.
 - Al actualizar el estado desde el webhook mock también se borra `application:<tenantId>:<applicationId>`.
@@ -167,16 +173,19 @@ Existe un endpoint público (mock) que simula que un partner recibe un webhook:
 - `POST /mock/partner/webhooks/applications/:applicationId/risk-updated`
 
 Este endpoint:
+
 - guarda un registro en `webhook_deliveries` (request/headers/URL),
 - y lo marca como `SUCCESS` con respuesta `{ ok: true }`.
 
 ### 6.2 Qué está implementado vs qué queda pendiente
 
 Implementado:
+
 - Persistencia de deliveries con trazabilidad (incluye `idempotency_key` y snapshot de headers).
 - Listado/admin debug: `GET /webhook-deliveries` y `GET /webhook-deliveries/:id`.
 
 Pendiente (para hacerlo “production-like”):
+
 - retries reales (usar `status=SENT/FAILED`, backoff, max attempts).
 - idempotencia estricta (rechazar duplicados por `idempotency_key`).
 - manejo robusto de errores del outbound (capturar status/body, reintentar, DLQ para webhooks).
@@ -188,6 +197,7 @@ También hay un detalle relevante: el worker hoy hace un `fetch(...)` a `http://
 ### 7.1 Por qué polling (y no Socket.IO / SSE)
 
 Se eligió polling por simplicidad y porque:
+
 - es fácil de entender,
 - fácil de debuggear (solo HTTP),
 - y suficiente para mostrar “near realtime” en una prueba.
@@ -195,12 +205,14 @@ Se eligió polling por simplicidad y porque:
 ### 7.2 Qué se refresca y cada cuánto
 
 En el frontend:
+
 - Lista de solicitudes (`GET /applications`): cada **5s**.
 - Tabla DLQ (`GET /applications/risk-evaluations/dlq`): cada **10s**.
 
 ### 7.3 Evitar problemas de caché/304 en el navegador
 
 Las llamadas de polling que más se repiten (`/applications` y `/applications/risk-evaluations/dlq`) envían headers:
+
 - `Cache-Control: no-cache`
 - `Pragma: no-cache`
 
@@ -256,4 +268,3 @@ Motivo: algunos navegadores pueden responder `304 Not Modified` y Axios trata `3
   - Más tráfico (requests periódicos).
   - Menos inmediato que un canal push.
   - En producción: SSE/Socket.IO o eventos (pub/sub) para “push real”.
-

@@ -40,42 +40,23 @@ El objetivo es mostrar cómo diseñaría e implementaría un sistema de este tip
 - `docs/future_work.md`: escalabilidad, grandes volúmenes e ideas de trabajo futuro.
 - `docs/design doc.md`: diseño detallado (más largo; útil si quieres profundizar).
 
-### 1.2. Modelo de datos
-
-Documento dedicado: `docs/data_model.ts`.
-
-Incluye:
-- diagrama ER (Mermaid) con las tablas principales,
-- cómo se implementa multi-tenant con `tenant_id`,
-- cómo la cola `async_jobs` soporta el procesamiento asíncrono,
-- cómo se registran resultados de riesgo (`application_risk_results`) y webhooks (`webhook_deliveries`).
-
-### 1.3. Decisiones técnicas clave
-
-Documento dedicado: `docs/technical_decisions.md`.
-
-Resume por qué se eligió:
-- token dev `DEV.v1...` (demo-friendly y revocable),
-- cola en Postgres (trigger + `SKIP LOCKED`),
-- Strategy pattern por país y `country_rules` versionado,
-- cache in-memory con `CachePort` (puerto para Redis),
-- polling en el frontend (simplicidad).
-
-### 1.4. Escalabilidad y trabajo futuro
-
-Documento dedicado: `docs/future_work.md`.
-
-Cubre índices recomendados, particionado/archivado, consultas críticas, evolución de colas y cache distribuida, y una lista de mejoras de producto/observabilidad.
-
----
-
 ## 2. Cómo correr el proyecto en local
 
 ### 2.1. Prerrequisitos
 
-- Node 22
-- pnpm
+- Node 22 https://nodejs.org/es/download
+- pnpm https://pnpm.io/installation
 - Docker + Docker Compose
+
+      - Mac https://www.docker.com/products/docker-desktop/ + https://docs.docker.com/desktop/setup/install/mac-install/
+      - Windows https://www.docker.com/products/docker-desktop/ + https://docs.docker.com/desktop/setup/install/windows-install/
+      - Linux: https://docs.docker.com/engine/install/ + https://docs.docker.com/compose/install/linux/
+
+### 2.1 Instala dependencias
+
+```bash
+pnpm install
+```
 
 ### 2.2. Levantar PostgreSQL
 
@@ -87,15 +68,17 @@ docker compose up -d
 
 Esto levanta dos bases:
 
-- Dev: `bravo_dev` en `localhost:57434`
+- Dev: `bravo_dev` en `localhost:57432`
 
-- Test: `bravo_test` en `localhost:57435`
-
-Nota: ajusté .env.example para que el DB_PORT coincida con 57434 (dev).
+- Test: `bravo_test` en `localhost:57433`
 
 ### 2.3. Variables de entorno
 
 Usamos `.env.${NODE_ENV}`:
+
+```bash
+pnpm dlx shx cp .env.example .env.local
+```
 
 - Desarrollo: `.env.local`
 
@@ -108,7 +91,7 @@ Como base:
 NODE_ENV=local
 
 DB_HOST=localhost
-DB_PORT=57434
+DB_PORT=57432
 DB_USERNAME=postgres
 DB_PASSWORD=postgres
 DB_NAME=bravo_dev
@@ -140,13 +123,11 @@ Backend:
 pnpm dev   # NestJS en http://localhost:3000
 ```
 
-
 Frontend:
 
 ```bash
 pnpm dev:front  # Vite en http://localhost:5173
 ```
-
 
 - Swagger: `http://localhost:3000/api`
 
@@ -161,7 +142,6 @@ pnpm dev:front  # Vite en http://localhost:5173
 Auth “dev” basada en un token:
 
 DEV.v1.{tenantId}.{userId}.{role}.{timestamp}
-
 
 Este token se registra en la tabla token y se puede revocar (soft-delete).
 
@@ -301,7 +281,7 @@ GET /webhook-deliveries
 GET /webhook-deliveries/:id
 
 4. Procesamiento asíncrono y motor de riesgo
-4.1. Cola async_jobs + trigger
+   4.1. Cola async_jobs + trigger
 
 Tabla async_jobs con:
 
@@ -324,7 +304,6 @@ Servicio AsyncJobsProcessorService:
 Selecciona jobs PENDING con:
 
 FOR UPDATE SKIP LOCKED
-
 
 → Permite correr múltiples workers en paralelo sin pisarse.
 
@@ -421,11 +400,11 @@ ES:
 
 Ejemplos (intuitivos):
 
-| País | bankMonthlyIncome | totalDebt | requestedAmount | DTI | requestedRatio | Decisión |
-|------|-------------------|-----------|-----------------|-----|----------------|---------|
-| MX | 50,000 | 8,000 | 5,000 | 0.16 | 0.10 | APPROVE |
-| MX | 50,000 | 12,000 | 35,000 | 0.24 | 0.70 | REVIEW |
-| MX | 7,000 | 3,000 | 30,000 | 0.43 | 4.29 | REJECT |
+| País | bankMonthlyIncome | totalDebt | requestedAmount | DTI  | requestedRatio | Decisión |
+| ---- | ----------------- | --------- | --------------- | ---- | -------------- | -------- |
+| MX   | 50,000            | 8,000     | 5,000           | 0.16 | 0.10           | APPROVE  |
+| MX   | 50,000            | 12,000    | 35,000          | 0.24 | 0.70           | REVIEW   |
+| MX   | 7,000             | 3,000     | 30,000          | 0.43 | 4.29           | REJECT   |
 
 5. Cache
 
@@ -450,7 +429,6 @@ Para mostrar integración externa:
 El worker, tras evaluar riesgo, llama a un endpoint mock de partner:
 
 POST /mock/partner/webhooks/applications/:applicationId/risk-updated
-
 
 Este endpoint:
 
@@ -496,9 +474,11 @@ La idea es que puedas ver el flujo end-to-end sin conocer NestJS.
 ### 7.4. Ver la cola `async_jobs` en acción
 
 Cuando creás una solicitud:
+
 - Postgres encola automáticamente un job `RISK_EVAL` en `async_jobs` (trigger `AFTER INSERT`).
 
 El procesamiento ocurre de dos formas:
+
 - **Automático**: si `ASYNC_JOBS_CRON_ENABLED=true`, el worker procesa jobs periódicamente.
 - **Manual (debug)**: desde Swagger (`http://localhost:3000/api`) podés llamar **`POST /jobs/process?limit=10`** (requiere ADMIN).
 
@@ -520,15 +500,17 @@ El frontend refresca la lista por **polling** cada ~5s para simular “near real
 ### 7.7. Ver un webhook registrado en `webhook_deliveries`
 
 Cuando el worker procesa un `RISK_EVAL`, también llama al endpoint mock:
+
 - `POST /mock/partner/webhooks/applications/:applicationId/risk-updated`
 
 Eso persiste un registro en `webhook_deliveries`. Para verlo:
+
 1. Abrí Swagger (`http://localhost:3000/api`)
 2. Llamá **`GET /webhook-deliveries`** (requiere ADMIN)
 3. Opcional: `GET /webhook-deliveries/:id` para ver request/headers/response.
 
-8. Validaciones – Cómo funcionan
-8.1. Nivel DTO (HTTP)
+4. Validaciones – Cómo funcionan
+   8.1. Nivel DTO (HTTP)
 
 Se usa class-validator + ValidationPipe global:
 
@@ -711,6 +693,7 @@ Esta sección quedó extraída a un documento dedicado para que el README sea m�
 - Ver: `docs/future_work.md`
 
 Resumen de lo que cubre:
+
 - índices recomendados por tabla (listados, “último resultado”, consumo FIFO-ish, auditoría),
 - particionamiento/archivado,
 - consultas críticas y patrones de acceso,
