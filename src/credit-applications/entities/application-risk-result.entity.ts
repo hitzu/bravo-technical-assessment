@@ -36,6 +36,15 @@ export class ApplicationRiskResult extends BaseTimeEntity {
   })
   debtToIncomeRatio!: number;
 
+  @Column('numeric', {
+    name: 'requested_amount_to_monthly_income_ratio',
+    precision: 10,
+    scale: 4,
+    transformer: numericToNumberTransformer,
+    default: 0,
+  })
+  requestedAmountToMonthlyIncomeRatio!: number;
+
   @Column('int', { name: 'risk_score' })
   riskScore!: number;
 

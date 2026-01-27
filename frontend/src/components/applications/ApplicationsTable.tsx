@@ -34,6 +34,31 @@ const STATUS_OPTIONS = [
 
 const APPLICATIONS_POLL_INTERVAL_MS = 5000;
 
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(
+    value,
+  );
+}
+
+function formatRatio(value: number): string {
+  return Number.isFinite(value) ? value.toFixed(2) : '—';
+}
+
+function getRecordNumber(
+  record: Record<string, unknown> | null | undefined,
+  key: string,
+): number | null {
+  const value = record?.[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function decisionLabel(decision: string): string {
+  if (decision === 'APPROVE') return 'APPROVE';
+  if (decision === 'REVIEW') return 'REVIEW';
+  if (decision === 'REJECT') return 'REJECT';
+  return decision;
+}
+
 export function ApplicationsTable(props: {
   refreshKey: number;
   currentUser: User | null;
@@ -139,10 +164,13 @@ export function ApplicationsTable(props: {
     [pollingEnabled, page, pageSize, countryId, status],
   );
 
-  usePolling(() => loadList({ silent: true, background: hasLoadedOnceRef.current }), {
-    enabled: pollingEnabled,
-    intervalMs: APPLICATIONS_POLL_INTERVAL_MS,
-  });
+  usePolling(
+    () => loadList({ silent: true, background: hasLoadedOnceRef.current }),
+    {
+      enabled: pollingEnabled,
+      intervalMs: APPLICATIONS_POLL_INTERVAL_MS,
+    },
+  );
 
   const didFirstQueryLoadRef = useRef(false);
   useEffect(() => {
@@ -152,7 +180,15 @@ export function ApplicationsTable(props: {
       return;
     }
     void loadList();
-  }, [pollingEnabled, page, pageSize, countryId, status, props.refreshKey, loadList]);
+  }, [
+    pollingEnabled,
+    page,
+    pageSize,
+    countryId,
+    status,
+    props.refreshKey,
+    loadList,
+  ]);
 
   async function openDetail(id: string) {
     setSelectedId(id);
@@ -305,13 +341,46 @@ export function ApplicationsTable(props: {
             </Text>
 
             <Stack gap={4} mt="sm">
-              <Text fw={600}>Último resultado de riesgo</Text>
+              <Text fw={600}>Risk summary</Text>
               {selectedDetail.riskResult ? (
-                <Text size="sm">
-                  Decision: {selectedDetail.riskResult.decision} · Score:{' '}
-                  {selectedDetail.riskResult.riskScore} · DTI:{' '}
-                  {selectedDetail.riskResult.debtToIncomeRatio}
-                </Text>
+                (() => {
+                  const snapshot =
+                    selectedDetail.riskResult.rawBankSnapshot ?? null;
+                  const bankIncome =
+                    getRecordNumber(snapshot, 'monthlyIncome') ?? null;
+                  const totalDebt =
+                    getRecordNumber(snapshot, 'totalDebt') ?? null;
+
+                  return (
+                    <Stack gap={2}>
+                      <Text size="sm">
+                        Debt-to-income ratio:{' '}
+                        {formatRatio(
+                          selectedDetail.riskResult.debtToIncomeRatio,
+                        )}{' '}
+                        {totalDebt === null || bankIncome === null ? null : (
+                          <>
+                            (debt {formatNumber(totalDebt)} / income{' '}
+                            {formatNumber(bankIncome)})
+                          </>
+                        )}
+                      </Text>
+                      <Text size="sm">
+                        Requested amount ratio:{' '}
+                        {formatRatio(
+                          selectedDetail.riskResult
+                            .requestedAmountToMonthlyIncomeRatio,
+                        )}{' '}
+                        (amount {formatNumber(selectedDetail.requestedAmount)} /
+                        income {formatNumber(selectedDetail.monthlyIncome)})
+                      </Text>
+                      <Text size="sm">
+                        Decision:{' '}
+                        {decisionLabel(selectedDetail.riskResult.decision)}
+                      </Text>
+                    </Stack>
+                  );
+                })()
               ) : (
                 <Text size="sm" c="dimmed">
                   Aún no disponible

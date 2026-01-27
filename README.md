@@ -344,6 +344,41 @@ debtToIncomeRatio u otras métricas.
 
 El resultado se persiste en application_risk_results y se enlaza con la solicitud.
 
+4.4. Reglas de riesgo (simplificadas, MX/ES)
+
+Para que el revisor pueda razonar el resultado “a ojo”, las estrategias de MX/ES usan reglas basadas en dos ratios:
+
+- DTI (debt-to-income): totalDebt / bankMonthlyIncome
+- requestedRatio: requestedAmount / declaredMonthlyIncome
+
+MX:
+
+- Severidad por DTI:
+  - APPROVE si DTI < 0.25
+  - REJECT si DTI > 0.60
+  - si no, REVIEW
+- Severidad por requestedRatio:
+  - APPROVE si requestedRatio <= 0.30
+  - REVIEW si 0.30 < requestedRatio <= 0.80
+  - REJECT si requestedRatio > 0.80
+- Decisión final: peor severidad entre ambas (worstSeverity).
+
+ES:
+
+- Solo usa DTI:
+  - APPROVE si DTI < 0.30
+  - REVIEW si 0.30 <= DTI <= 0.60
+  - REJECT si DTI > 0.60
+- Hook opcional: si existe countryRule.requestedAmountReviewThreshold y requestedAmount lo excede, se degrada APPROVE → REVIEW.
+
+Ejemplos (intuitivos):
+
+| País | bankMonthlyIncome | totalDebt | requestedAmount | DTI | requestedRatio | Decisión |
+|------|-------------------|-----------|-----------------|-----|----------------|---------|
+| MX | 50,000 | 8,000 | 5,000 | 0.16 | 0.10 | APPROVE |
+| MX | 50,000 | 12,000 | 35,000 | 0.24 | 0.70 | REVIEW |
+| MX | 7,000 | 3,000 | 30,000 | 0.43 | 4.29 | REJECT |
+
 5. Cache
 
 Interfaz CachePort con un adapter in-memory.

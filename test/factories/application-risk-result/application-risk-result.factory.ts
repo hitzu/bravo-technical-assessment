@@ -21,6 +21,11 @@ export class ApplicationRiskResultFactory extends Factory<ApplicationRiskResult>
       tenantId: faker.string.uuid(),
       countryId: faker.string.uuid(),
       debtToIncomeRatio: faker.number.float({ min: 0, max: 10, fractionDigits: 4 }),
+      requestedAmountToMonthlyIncomeRatio: faker.number.float({
+        min: 0,
+        max: 10,
+        fractionDigits: 4,
+      }),
       riskScore: faker.number.int({ min: 0, max: 100 }),
       decision: faker.helpers.arrayElement<APPLICATION_RISK_DECISION>(
         Object.values(APPLICATION_RISK_DECISION),

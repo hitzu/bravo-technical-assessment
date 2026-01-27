@@ -21,6 +21,7 @@ export interface RiskEvaluationResult {
   riskScore: number;
   decision: RiskDecision;
   debtToIncomeRatio: number;
+  requestedAmountToMonthlyIncomeRatio: number;
   rawBankSnapshot: BankSnapshot;
 }
 

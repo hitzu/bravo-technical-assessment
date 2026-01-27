@@ -21,6 +21,8 @@ export type ApplicationRiskResult = {
   decision: string;
   riskScore: number;
   debtToIncomeRatio: number;
+  requestedAmountToMonthlyIncomeRatio: number;
+  rawBankSnapshot?: Record<string, unknown> | null;
 };
 
 export type CreditApplication = {

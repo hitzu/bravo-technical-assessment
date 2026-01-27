@@ -5,6 +5,7 @@ import { CountryFactory } from '@factories/country/country.factory';
 import { TenantFactory } from '@factories/tenant/tenant.factory';
 import { UserFactory } from '@factories/user/user.factory';
 import { COUNTRY_STATUS } from '../common/types/country-status.type';
+import type { CountryRule } from '../countries/entities/country-rule.entity';
 import { AppDataSource as TestDataSource } from '../config/database/data-source';
 import { APPLICATION_RISK_DECISION } from './constants/risk.types';
 import type { BankSnapshot } from './constants/risk.types';
@@ -58,7 +59,7 @@ describe('RiskEvaluatorService', () => {
       countryCode: 'ES',
       provider: 'TEST',
       monthlyIncome: 2000,
-      totalDebt: 200,
+      totalDebt: 500,
       productsCount: 1,
       generatedAt: new Date().toISOString(),
     };
@@ -89,7 +90,7 @@ describe('RiskEvaluatorService', () => {
       countryCode: 'ES',
       provider: 'TEST',
       monthlyIncome: 2000,
-      totalDebt: 2000,
+      totalDebt: 1500,
       productsCount: 3,
       generatedAt: new Date().toISOString(),
     };
@@ -99,6 +100,40 @@ describe('RiskEvaluatorService', () => {
 
     // Assert
     expect(result.decision).toBe(APPLICATION_RISK_DECISION.REJECT);
+  });
+
+  it('returns REVIEW for ES when large amount triggers the optional hook', async () => {
+    // Arrange
+    const tenant = await tenantFactory.create();
+    const user = await userFactory.create({ tenant });
+    const country = await countryFactory.create({
+      code: 'ES',
+      status: COUNTRY_STATUS.ACTIVE,
+    });
+    const application = await creditApplicationFactory.create({
+      tenantId: tenant.id,
+      countryId: country.id,
+      monthlyIncome: 50_000,
+      requestedAmount: 35_000,
+      createdBy: user.id,
+    });
+    const snapshot: BankSnapshot = {
+      countryCode: 'ES',
+      provider: 'TEST',
+      monthlyIncome: 50_000,
+      totalDebt: 5_000,
+      productsCount: 2,
+      generatedAt: new Date().toISOString(),
+    };
+
+    // Act
+    const rule = {
+      requestedAmountReviewThreshold: 10_000,
+    } as unknown as CountryRule;
+    const result = service.evaluateRisk('ES', application, snapshot, rule);
+
+    // Assert
+    expect(result.decision).toBe(APPLICATION_RISK_DECISION.REVIEW);
   });
 
   it('returns APPROVE for MX low risk case', async () => {
@@ -112,15 +147,15 @@ describe('RiskEvaluatorService', () => {
     const application = await creditApplicationFactory.create({
       tenantId: tenant.id,
       countryId: country.id,
-      monthlyIncome: 10_000,
-      requestedAmount: 10_000,
+      monthlyIncome: 50_000,
+      requestedAmount: 5_000,
       createdBy: user.id,
     });
     const snapshot: BankSnapshot = {
       countryCode: 'MX',
       provider: 'TEST',
-      monthlyIncome: 10000,
-      totalDebt: 2000,
+      monthlyIncome: 50_000,
+      totalDebt: 8_000,
       productsCount: 2,
       generatedAt: new Date().toISOString(),
     };
@@ -130,6 +165,37 @@ describe('RiskEvaluatorService', () => {
 
     // Assert
     expect(result.decision).toBe(APPLICATION_RISK_DECISION.APPROVE);
+  });
+
+  it('returns REVIEW for MX when requested amount ratio is moderate', async () => {
+    // Arrange
+    const tenant = await tenantFactory.create();
+    const user = await userFactory.create({ tenant });
+    const country = await countryFactory.create({
+      code: 'MX',
+      status: COUNTRY_STATUS.ACTIVE,
+    });
+    const application = await creditApplicationFactory.create({
+      tenantId: tenant.id,
+      countryId: country.id,
+      monthlyIncome: 50_000,
+      requestedAmount: 35_000,
+      createdBy: user.id,
+    });
+    const snapshot: BankSnapshot = {
+      countryCode: 'MX',
+      provider: 'TEST',
+      monthlyIncome: 50_000,
+      totalDebt: 12_000,
+      productsCount: 3,
+      generatedAt: new Date().toISOString(),
+    };
+
+    // Act
+    const result = service.evaluateRisk('MX', application, snapshot);
+
+    // Assert
+    expect(result.decision).toBe(APPLICATION_RISK_DECISION.REVIEW);
   });
 
   it('returns REJECT for MX high risk case', async () => {
@@ -143,16 +209,16 @@ describe('RiskEvaluatorService', () => {
     const application = await creditApplicationFactory.create({
       tenantId: tenant.id,
       countryId: country.id,
-      monthlyIncome: 1_000,
-      requestedAmount: 200_000,
+      monthlyIncome: 7_000,
+      requestedAmount: 30_000,
       createdBy: user.id,
     });
     const snapshot: BankSnapshot = {
       countryCode: 'MX',
       provider: 'TEST',
-      monthlyIncome: 10000,
-      totalDebt: 8000,
-      productsCount: 5,
+      monthlyIncome: 7_000,
+      totalDebt: 3_000,
+      productsCount: 1,
       generatedAt: new Date().toISOString(),
     };
 

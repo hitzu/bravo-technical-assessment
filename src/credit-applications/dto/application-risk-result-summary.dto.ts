@@ -24,14 +24,33 @@ export class ApplicationRiskResultSummaryDto {
   })
   debtToIncomeRatio: number;
 
+  @ApiProperty({
+    description:
+      'Requested amount to declared monthly income ratio (requestedAmount / monthlyIncome)',
+    example: 0.1,
+  })
+  requestedAmountToMonthlyIncomeRatio: number;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Raw bank snapshot used for the evaluation (for reviewer context)',
+    example: { monthlyIncome: 50000, totalDebt: 8000 },
+  })
+  rawBankSnapshot?: Record<string, unknown> | null;
+
   constructor(params: {
     decision: APPLICATION_RISK_DECISION;
     riskScore: number;
     debtToIncomeRatio: number;
+    requestedAmountToMonthlyIncomeRatio: number;
+    rawBankSnapshot?: Record<string, unknown> | null;
   }) {
     this.decision = params.decision;
     this.riskScore = params.riskScore;
     this.debtToIncomeRatio = params.debtToIncomeRatio;
+    this.requestedAmountToMonthlyIncomeRatio = params.requestedAmountToMonthlyIncomeRatio;
+    this.rawBankSnapshot = params.rawBankSnapshot ?? null;
   }
 }
 

@@ -142,6 +142,8 @@ export class CreditApplicationResponseDto {
         decision: riskResult.decision,
         riskScore: riskResult.riskScore,
         debtToIncomeRatio: riskResult.debtToIncomeRatio,
+        requestedAmountToMonthlyIncomeRatio: riskResult.requestedAmountToMonthlyIncomeRatio,
+        rawBankSnapshot: riskResult.rawBankSnapshot,
       })
       : null;
     this.riskEvalJob = riskEvalJob ? new RiskEvalJobSummaryDto(riskEvalJob) : null;

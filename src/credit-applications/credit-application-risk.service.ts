@@ -66,7 +66,10 @@ export class CreditApplicationRiskService {
         });
 
         const bankProvider = this.bankProviderRegistryService.resolve(country.code);
-        const bankSnapshot = await bankProvider.fetchBankInfo(application.documentId);
+        const bankSnapshot = await bankProvider.fetchBankInfo(
+          application.documentId,
+          application.monthlyIncome,
+        );
         const evaluation = this.riskEvaluatorService.evaluateRisk(
           country.code,
           application,
@@ -79,6 +82,7 @@ export class CreditApplicationRiskService {
           tenantId,
           countryId: application.countryId,
           debtToIncomeRatio: evaluation.debtToIncomeRatio,
+          requestedAmountToMonthlyIncomeRatio: evaluation.requestedAmountToMonthlyIncomeRatio,
           riskScore: evaluation.riskScore,
           decision: evaluation.decision,
           rawBankSnapshot: evaluation.rawBankSnapshot,
