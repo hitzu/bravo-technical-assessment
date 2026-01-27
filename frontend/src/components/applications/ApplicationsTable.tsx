@@ -16,6 +16,7 @@ import {
   getApplicationById,
   listApplications,
   listCountries,
+  listTenants,
   updateApplicationStatus,
 } from '../../api/services';
 import type {
@@ -23,7 +24,7 @@ import type {
   CreditApplication,
   PaginatedResponse,
 } from '../../api/types/api';
-import type { User } from '../../api/types';
+import type { Tenant, User } from '../../api/types';
 import { usePolling } from '../../hooks/usePolling';
 
 const STATUS_OPTIONS = [
@@ -66,11 +67,15 @@ export function ApplicationsTable(props: {
   currentUser: User | null;
 }) {
   const [countries, setCountries] = useState<Country[]>([]);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
   const countriesById = useMemo(
     () => new Map(countries.map((c) => [c.id, c])),
     [countries],
   );
-
+  const tenantsById = useMemo(
+    () => new Map(tenants.map((t) => [t.id, t])),
+    [tenants],
+  );
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [countryId, setCountryId] = useState<string | null>(null);
@@ -126,8 +131,10 @@ export function ApplicationsTable(props: {
     async function loadCountries() {
       try {
         const res = await listCountries();
+        const tenantsRes = await listTenants();
         if (cancelled) return;
         setCountries(res);
+        setTenants(tenantsRes);
       } catch {
         // Optional catalog; table can still work without names.
       }
@@ -366,7 +373,11 @@ export function ApplicationsTable(props: {
           <Stack gap="xs">
             <Text fw={700}>{selectedDetail.fullName}</Text>
             <Text size="sm">ID: {selectedDetail.id}</Text>
-            <Text size="sm">Tenant: {selectedDetail.tenantId}</Text>
+            <Text size="sm">
+              TenantId:{' '}
+              {tenantsById.get(selectedDetail.tenantId)?.name ??
+                selectedDetail.tenantId}
+            </Text>
             <Text size="sm">
               País:{' '}
               {countriesById.get(selectedDetail.countryId)?.name ??
@@ -406,14 +417,14 @@ export function ApplicationsTable(props: {
               </Stack>
             )}
             <Text size="sm">
-              Monthly income: {selectedDetail.monthlyIncome}
+              Ingreso mensual: {selectedDetail.monthlyIncome}
             </Text>
             <Text size="sm">
-              Requested amount: {selectedDetail.requestedAmount}
+              Cantidad solicitada: {selectedDetail.requestedAmount}
             </Text>
 
             <Stack gap={4} mt="sm">
-              <Text fw={600}>Risk summary</Text>
+              <Text fw={600}>Resultado de riesgo</Text>
               {selectedDetail.riskResult ? (
                 (() => {
                   const snapshot =
@@ -426,7 +437,7 @@ export function ApplicationsTable(props: {
                   return (
                     <Stack gap={2}>
                       <Text size="sm">
-                        Debt-to-income ratio:{' '}
+                        Ratio deuda-ingreso:{' '}
                         {formatRatio(
                           selectedDetail.riskResult.debtToIncomeRatio,
                         )}{' '}
@@ -438,7 +449,7 @@ export function ApplicationsTable(props: {
                         )}
                       </Text>
                       <Text size="sm">
-                        Requested amount ratio:{' '}
+                        Ratio cantidad solicitada-ingreso:{' '}
                         {formatRatio(
                           selectedDetail.riskResult
                             .requestedAmountToMonthlyIncomeRatio,
@@ -450,6 +461,8 @@ export function ApplicationsTable(props: {
                         Decision:{' '}
                         {decisionLabel(selectedDetail.riskResult.decision)}
                       </Text>
+                      <Text size="sm">Información del banco:</Text>
+                      <Text size="sm">{JSON.stringify(snapshot)}</Text>
                     </Stack>
                   );
                 })()

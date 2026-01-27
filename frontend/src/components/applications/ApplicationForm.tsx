@@ -197,12 +197,12 @@ export function ApplicationForm(props: {
         />
 
         <TextInput
-          label="Full name"
+          label="Nombre completo"
           placeholder="Juan Pérez"
           {...form.getInputProps('fullName')}
         />
         <TextInput
-          label={documentLabel ? `Document (${documentLabel})` : 'Document'}
+          label={documentLabel ? `Documento (${documentLabel})` : 'Documento'}
           placeholder={documentLabel ? `Ej: ${documentLabel}` : 'XEXX010101000'}
           description={
             documentPattern
@@ -213,13 +213,13 @@ export function ApplicationForm(props: {
         />
 
         <NumberInput
-          label="Monthly income"
+          label="Ingreso mensual"
           min={0}
           thousandSeparator=","
           {...form.getInputProps('monthlyIncome')}
         />
         <NumberInput
-          label="Requested amount"
+          label="Cantidad solicitada"
           min={0}
           thousandSeparator=","
           {...form.getInputProps('requestedAmount')}
