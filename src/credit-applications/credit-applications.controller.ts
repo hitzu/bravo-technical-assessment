@@ -14,6 +14,9 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiBadRequestResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -133,13 +136,26 @@ export class CreditApplicationsController {
 
   @Patch(':id/status')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Update credit application status (ADMIN only)' })
-  @ApiOkResponse({ type: CreditApplicationResponseDto })
+  @ApiOperation({
+    summary: 'Manual status override (ADMIN only)',
+    description:
+      'Allowed transitions: IN_REVIEW → APPROVED | REJECTED. This endpoint only updates the credit application status field.',
+  })
+  @ApiOkResponse({
+    type: CreditApplicationResponseDto,
+    description: 'Credit application updated',
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Invalid transition (must be IN_REVIEW → APPROVED|REJECTED).',
+  })
+  @ApiNotFoundResponse({ description: 'Credit application not found' })
+  @ApiForbiddenResponse({ description: 'Insufficient role (ADMIN only)' })
   async updateStatus(
     @AuthUser() authUser: AuthUserContext,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateCreditApplicationStatusDto,
-  ): Promise<CreditApplicationResponseDto> {
+  ): Promise<void> {
     const updated = await this.creditApplicationsService.updateStatus(
       authUser.tenantId,
       authUser.userId,
@@ -147,7 +163,6 @@ export class CreditApplicationsController {
       id,
       dto.status,
     );
-    return new CreditApplicationResponseDto(updated);
   }
 }
 

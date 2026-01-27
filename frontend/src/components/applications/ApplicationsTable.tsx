@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Badge,
   Button,
   Drawer,
   Group,
@@ -15,6 +16,7 @@ import {
   getApplicationById,
   listApplications,
   listCountries,
+  updateApplicationStatus,
 } from '../../api/services';
 import type {
   Country,
@@ -84,6 +86,10 @@ export function ApplicationsTable(props: {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDetail, setSelectedDetail] =
     useState<CreditApplication | null>(null);
+  const [adminNextStatus, setAdminNextStatus] = useState<
+    'APPROVED' | 'REJECTED' | null
+  >(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   const countryOptions = useMemo(
     () =>
@@ -193,6 +199,7 @@ export function ApplicationsTable(props: {
   async function openDetail(id: string) {
     setSelectedId(id);
     setSelectedDetail(null);
+    setAdminNextStatus(null);
     setDrawerOpen(true);
     try {
       const res = await getApplicationById(id);
@@ -204,6 +211,36 @@ export function ApplicationsTable(props: {
         message: msg,
         color: 'red',
       });
+    }
+  }
+
+  const canShowAdminStatusOverride =
+    props.currentUser?.role === 'ADMIN' &&
+    selectedDetail?.status === 'IN_REVIEW';
+
+  async function handleAdminUpdateStatus() {
+    if (!selectedDetail || !adminNextStatus) return;
+    try {
+      setIsUpdatingStatus(true);
+      const updated = await updateApplicationStatus(
+        selectedDetail.id,
+        adminNextStatus,
+      );
+      showNotification({
+        title: 'Estado actualizado',
+        message: `Estado de la solicitud de crédito actualizado`,
+        color: 'green',
+      });
+      await loadList({ silent: true });
+      setDrawerOpen(false);
+    } catch (err) {
+      showNotification({
+        title: 'Error actualizando estado',
+        message: err instanceof Error ? err.message : 'Error desconocido',
+        color: 'red',
+      });
+    } finally {
+      setIsUpdatingStatus(false);
     }
   }
 
@@ -315,7 +352,10 @@ export function ApplicationsTable(props: {
 
       <Drawer
         opened={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => {
+          setDrawerOpen(false);
+          setAdminNextStatus(null);
+        }}
         title="Detalle de solicitud"
         position="right"
         size="lg"
@@ -332,7 +372,39 @@ export function ApplicationsTable(props: {
               {countriesById.get(selectedDetail.countryId)?.name ??
                 selectedDetail.countryId}
             </Text>
-            <Text size="sm">Estado: {selectedDetail.status}</Text>
+            <Group gap="xs">
+              <Text size="sm">Estado:</Text>
+              <Badge variant="light">{selectedDetail.status}</Badge>
+            </Group>
+
+            {!canShowAdminStatusOverride ? null : (
+              <Stack gap="xs" mt="xs">
+                <Text fw={600} size="sm">
+                  Admin status override (IN_REVIEW only)
+                </Text>
+                <Select
+                  data={[
+                    { value: 'APPROVED', label: 'APPROVED' },
+                    { value: 'REJECTED', label: 'REJECTED' },
+                  ]}
+                  value={adminNextStatus}
+                  onChange={(v) =>
+                    setAdminNextStatus(
+                      v === 'APPROVED' || v === 'REJECTED' ? v : null,
+                    )
+                  }
+                  placeholder="Select new status"
+                  w={240}
+                />
+                <Button
+                  onClick={() => void handleAdminUpdateStatus()}
+                  disabled={!adminNextStatus}
+                  loading={isUpdatingStatus}
+                >
+                  Update status
+                </Button>
+              </Stack>
+            )}
             <Text size="sm">
               Monthly income: {selectedDetail.monthlyIncome}
             </Text>

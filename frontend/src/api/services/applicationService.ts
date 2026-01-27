@@ -2,8 +2,6 @@ import type { CreditApplication, PaginatedResponse } from '../types/api';
 import { axiosInstanceWithToken } from '../config/axiosConfig';
 import type { CreateApplicationBody, ListApplicationsParams } from '../types';
 
-
-
 export async function listApplications(
   params: ListApplicationsParams,
 ): Promise<PaginatedResponse<CreditApplication>> {
@@ -32,7 +30,6 @@ export async function getApplicationById(
 export async function createApplication(
   body: CreateApplicationBody,
 ): Promise<CreditApplication> {
-
   const res = await axiosInstanceWithToken.post<CreditApplication>(
     '/applications',
     body,
@@ -40,3 +37,12 @@ export async function createApplication(
   return res.data;
 }
 
+export async function updateApplicationStatus(
+  id: string,
+  newStatus: 'APPROVED' | 'REJECTED',
+): Promise<void> {
+  const res = await axiosInstanceWithToken.patch<void>(
+    `/applications/${id}/status`,
+    { status: newStatus },
+  );
+}

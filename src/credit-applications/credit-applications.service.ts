@@ -335,11 +335,24 @@ export class CreditApplicationsService {
     });
 
     if (!application) {
-      throw new NotFoundException('Credit application not found');
+      throw new NotFoundException(EXCEPTION_RESPONSE.CREDIT_APPLICATION_NOT_FOUND);
     }
-
-    this.assertLegalStatusTransition(application.status, newStatus);
-
+    this.logger.log({ application }, ' en update status application porque no se que show :( jajajaja');
+    if (application.status !== CREDIT_APPLICATION_STATUS.IN_REVIEW) {
+      throw new BadRequestException(
+        EXCEPTION_RESPONSE.CREDIT_APPLICATION_STATUS_CAN_ONLY_BE_MANUALLY_CHANGED_FROM_IN_REVIEW,
+      );
+    }
+    this.logger.log({ newStatus }, 'newStatus');
+    const isAllowedTargetStatus =
+      newStatus === CREDIT_APPLICATION_STATUS.APPROVED ||
+      newStatus === CREDIT_APPLICATION_STATUS.REJECTED;
+    if (!isAllowedTargetStatus) {
+      throw new BadRequestException(
+        EXCEPTION_RESPONSE.CREDIT_APPLICATION_STATUS_MUST_BE_APPROVED_OR_REJECTED_FOR_MANUAL_ADMIN_UPDATE,
+      );
+    }
+    this.logger.log({ newStatus }, 'newStatus_2');
     application.status = newStatus;
     const updated = await this.creditApplicationsRepository.save(application);
     this.logger.log(
@@ -347,7 +360,6 @@ export class CreditApplicationsService {
       'Credit application status updated',
     );
 
-    this.cache.del(this.buildApplicationDetailCacheKey(tenantId, updated.id));
     return updated;
   }
 
@@ -389,24 +401,6 @@ export class CreditApplicationsService {
       const label = country.documentLabel ?? 'document';
       throw new BadRequestException(
         `Invalid document format for country`,
-      );
-    }
-  }
-
-  private assertLegalStatusTransition(
-    current: CREDIT_APPLICATION_STATUS,
-    next: CREDIT_APPLICATION_STATUS,
-  ): void {
-    const isCurrentTerminal =
-      current === CREDIT_APPLICATION_STATUS.APPROVED ||
-      current === CREDIT_APPLICATION_STATUS.REJECTED;
-    const isNextTerminal =
-      next === CREDIT_APPLICATION_STATUS.APPROVED ||
-      next === CREDIT_APPLICATION_STATUS.REJECTED;
-
-    if (isCurrentTerminal && isNextTerminal && current !== next) {
-      throw new BadRequestException(
-        `Invalid status transition from ${current} to ${next}`,
       );
     }
   }
