@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bravo-ingress
+  namespace: bravo
+  annotations:
+    # Example annotations for the NGINX Ingress Controller.
+    # Adjust/remove depending on your ingress controller.
+    nginx.ingress.kubernetes.io/use-regex: 'true'
+    # Rewrite /api/<path> -> /<path> so the backend (which serves routes at /) doesn't need to know about /api prefix.
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  rules:
+    - host: bravo.local # Placeholder host for the assessment.
+      http:
+        paths:
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bravo-backend
+                port:
+                  number: 3000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bravo-frontend
+                port:
+                  number: 80

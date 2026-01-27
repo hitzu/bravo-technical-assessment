@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-frontend
+  namespace: bravo
+data:
+  # For a browser-based frontend behind the same Ingress, this is typically the best option:
+  # it keeps same-origin calls and lets the Ingress route `/api/*` to the backend.
+  VITE_API_BASE_URL: '/api'

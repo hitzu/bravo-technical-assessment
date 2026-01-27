@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bravo-backend
+  namespace: bravo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bravo-backend
+  template:
+    metadata:
+      labels:
+        app: bravo-backend
+    spec:
+      containers:
+        - name: backend
+          # Placeholder image name for the technical assessment.
+          # Replace with your real registry image (built by CI) when deploying.
+          image: ghcr.io/placeholder/bravo-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: configmap-backend
+            - secretRef:
+                name: secret-backend
+          # Ensure cron runs only in the worker, not in the API deployment.
+          env:
+            - name: ASYNC_JOBS_CRON_ENABLED
+              value: 'false'
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi

@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-backend
+  namespace: bravo
+data:
+  # Runtime
+  NODE_ENV: "production" # NOTE: the code treats NODE_ENV="prod" as production in logger config.
+  PORT: "3000"
+
+  # Async jobs
+  # Cron should run in the worker deployment; backend API should keep it disabled.
+  ASYNC_JOBS_CRON_ENABLED: "false"
+  ASYNC_JOBS_CRON_LIMIT: "10"
+
+  # Optional (from code)
+  LOG_LEVEL: "info"
+  CORS_ORIGIN: "https://example.com"
+
+  # Used by the worker when calling the mock partner webhook endpoints.
+  # In a real deployment this would point to the public URL of the API.
+  PARTNER_BASE_URL: "http://bravo.local"
+
+  # Optional (supported by DB config)
+  DB_SCHEMA: "public"

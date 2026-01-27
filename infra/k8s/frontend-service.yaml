@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: bravo-frontend
+  namespace: bravo
+spec:
+  # ClusterIP is enough when using an Ingress.
+  # Use LoadBalancer if your cluster doesn't have an Ingress controller.
+  type: ClusterIP
+  selector:
+    app: bravo-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

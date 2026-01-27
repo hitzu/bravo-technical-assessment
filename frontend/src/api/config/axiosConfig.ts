@@ -1,6 +1,9 @@
 import axios from "axios";
 
-const baseURL = "http://localhost:3000";
+// Default matches backend local dev (`pnpm dev` -> http://localhost:3000).
+// Override via `frontend/.env*` using `VITE_API_BASE_URL`.
+const baseURL =
+  (import.meta as any)?.env?.VITE_API_BASE_URL || "http://localhost:3000";
 
 const axiosInstanceWithToken = axios.create({
   baseURL,

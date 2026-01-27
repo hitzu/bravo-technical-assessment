@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bravo-worker
+  namespace: bravo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bravo-worker
+  template:
+    metadata:
+      labels:
+        app: bravo-worker
+    spec:
+      containers:
+        - name: worker
+          # Placeholder image name for the technical assessment.
+          # In this repo the worker runs inside the same NestJS app process (cron-driven),
+          # so we reuse the backend image here.
+          image: ghcr.io/placeholder/bravo-backend:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: configmap-backend
+            - secretRef:
+                name: secret-backend
+          # Cron enabled here so jobs are processed by the worker.
+          env:
+            - name: ASYNC_JOBS_CRON_ENABLED
+              value: 'true'
+          # Reference only: if you had a dedicated worker entrypoint, you would set it here.
+          # command: ["node", "dist/main.js"]
+          # args: ["--mode=worker"]
+          resources:
+            requests:
+              cpu: 25m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

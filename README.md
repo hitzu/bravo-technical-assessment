@@ -623,3 +623,45 @@ Agregar un Makefile/Justfile con comandos cortos (make up, make dev, etc.).
 
 Documentar en más detalle la estrategia de índices, particionado y archivado.
 ```
+
+---
+
+## Despliegue en Kubernetes (referencia)
+
+Esta carpeta existe para cumplir el requerimiento de la prueba técnica con manifiestos **básicos** (plain YAML, sin Helm/kustomize). No está pensado como un despliegue production-grade.
+
+### Qué manifiestos existen
+
+Viven en `infra/k8s/`:
+
+- `namespace.yaml`: crea el namespace `bravo`.
+- `configmap-backend.yaml`: config no sensible del backend (puerto, logs, flags de cron, etc.).
+- `secret-backend.yaml`: secretos (placeholders) para DB y JWT (usa `stringData` a propósito para que sea legible en la revisión).
+- `backend-deployment.yaml` + `backend-service.yaml`: API NestJS (2 réplicas) expuesta como `ClusterIP` en el puerto 3000.
+- `worker-deployment.yaml`: worker para procesar jobs (reusa la misma imagen del backend y habilita el cron).
+- `configmap-frontend.yaml`: `VITE_API_BASE_URL` (por defecto `/api` para funcionar detrás del Ingress).
+- `frontend-deployment.yaml` + `frontend-service.yaml`: frontend (2 réplicas) expuesto como `ClusterIP` en el puerto 80.
+- `ingress.yaml`: enruta HTTP:
+  - `/api/*` → backend (con rewrite para quitar el prefijo `/api`)
+  - `/` → frontend
+
+### Asunciones importantes
+
+- **Postgres es externo/managed**: NO se despliega Postgres en Kubernetes. El backend asume un Postgres accesible vía `DB_URL` (o `DB_HOST/DB_PORT/...`).
+- **Imágenes placeholder**: los `image:` apuntan a nombres de ejemplo (p. ej. `ghcr.io/placeholder/...`). Deben reemplazarse por las imágenes reales construidas por CI.
+- **No endurecido para producción**: faltan cosas típicas de prod (TLS, network policies, HPA, PodDisruptionBudgets, securityContext, etc.). Es una referencia para la evaluación.
+
+### Cómo aplicarlo en un cluster de prueba
+
+```bash
+kubectl apply -f infra/k8s/namespace.yaml
+kubectl apply -f infra/k8s/ -n bravo
+```
+
+Si usas Ingress (por ejemplo NGINX) y quieres probar el host placeholder:
+
+- Añade `bravo.local` a tu `/etc/hosts` apuntando a la IP del Ingress Controller.
+
+### Nota sobre el frontend y el API base URL
+
+El frontend lee `VITE_API_BASE_URL` (ver `frontend/.env.example`). Para local sigue funcionando con el fallback `http://localhost:3000`, y para Kubernetes se recomienda `/api` (coincide con el `ingress.yaml`).
