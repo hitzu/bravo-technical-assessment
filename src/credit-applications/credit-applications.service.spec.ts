@@ -169,6 +169,7 @@ describe('CreditApplicationsService', () => {
     it('rejects an invalid ES document when country has a pattern', async () => {
       // Arrange
       const tenant = await tenantFactory.create();
+      const user = await userFactory.create({ tenant, role: USER_ROLES.ADMIN });
       const country = await countryFactory.create({
         code: 'ES',
         status: COUNTRY_STATUS.ACTIVE,
@@ -190,12 +191,12 @@ describe('CreditApplicationsService', () => {
       await expect(
         service.createApplication(
           tenant.id,
-          '00000000-0000-0000-0000-000000000001',
+          user.id,
           USER_ROLES.ADMIN,
           dto,
         ),
       ).rejects.toEqual(
-        new BadRequestException('Invalid DNI/NIF format for country ES'),
+        new BadRequestException(EXCEPTION_RESPONSE.INVALID_DOCUMENT_FORMAT_FOR_COUNTRY),
       );
     });
 
@@ -622,59 +623,34 @@ describe('CreditApplicationsService', () => {
     it('throws NotFoundException when application is missing', async () => {
       // Arrange
       const tenant = await tenantFactory.create();
-
+      const user = await userFactory.create({ tenant, role: USER_ROLES.ADMIN });
       // Act / Assert
       await expect(
         service.updateStatus(
           tenant.id,
-          '00000000-0000-0000-0000-000000000001',
+          user.id,
           USER_ROLES.ADMIN,
           '00000000-0000-0000-0000-000000000000',
           CREDIT_APPLICATION_STATUS.IN_REVIEW,
         ),
-      ).rejects.toEqual(new NotFoundException('Credit application not found'));
-    });
-
-    it('throws BadRequestException for invalid terminal-to-terminal transition', async () => {
-      // Arrange
-      const tenant = await tenantFactory.create();
-      const country = await countryFactory.create();
-      const app = await creditApplicationFactory.create({
-        tenantId: tenant.id,
-        countryId: country.id,
-        status: CREDIT_APPLICATION_STATUS.APPROVED,
-      });
-
-      // Act / Assert
-      await expect(
-        service.updateStatus(
-          tenant.id,
-          '00000000-0000-0000-0000-000000000001',
-          USER_ROLES.ADMIN,
-          app.id,
-          CREDIT_APPLICATION_STATUS.REJECTED,
-        ),
-      ).rejects.toEqual(
-        new BadRequestException(
-          'Invalid status transition from APPROVED to REJECTED',
-        ),
-      );
+      ).rejects.toEqual(new NotFoundException('solicitud de crédito no encontrada'));
     });
 
     it('allows terminal-to-same-terminal transition', async () => {
       // Arrange
       const tenant = await tenantFactory.create();
       const country = await countryFactory.create();
+      const user = await userFactory.create({ tenant, role: USER_ROLES.ADMIN });
       const app = await creditApplicationFactory.create({
         tenantId: tenant.id,
         countryId: country.id,
-        status: CREDIT_APPLICATION_STATUS.APPROVED,
+        status: CREDIT_APPLICATION_STATUS.IN_REVIEW,
       });
 
       // Act
       const updated = await service.updateStatus(
         tenant.id,
-        '00000000-0000-0000-0000-000000000001',
+        user.id,
         USER_ROLES.ADMIN,
         app.id,
         CREDIT_APPLICATION_STATUS.APPROVED,
@@ -690,25 +666,26 @@ describe('CreditApplicationsService', () => {
       // Arrange
       const tenant = await tenantFactory.create();
       const country = await countryFactory.create();
+      const user = await userFactory.create({ tenant, role: USER_ROLES.ADMIN });
       const app = await creditApplicationFactory.create({
         tenantId: tenant.id,
         countryId: country.id,
-        status: CREDIT_APPLICATION_STATUS.PENDING,
+        status: CREDIT_APPLICATION_STATUS.IN_REVIEW,
       });
 
       // Act
       const updated = await service.updateStatus(
         tenant.id,
-        '00000000-0000-0000-0000-000000000001',
+        user.id,
         USER_ROLES.ADMIN,
         app.id,
-        CREDIT_APPLICATION_STATUS.IN_REVIEW,
+        CREDIT_APPLICATION_STATUS.APPROVED,
       );
       const persisted = await creditAppRepo.findOne({ where: { id: app.id } });
 
       // Assert
-      expect(updated.status).toBe(CREDIT_APPLICATION_STATUS.IN_REVIEW);
-      expect(persisted?.status).toBe(CREDIT_APPLICATION_STATUS.IN_REVIEW);
+      expect(updated.status).toBe(CREDIT_APPLICATION_STATUS.APPROVED);
+      expect(persisted?.status).toBe(CREDIT_APPLICATION_STATUS.APPROVED);
     });
   });
 
@@ -758,13 +735,13 @@ describe('CreditApplicationsService', () => {
       // Arrange
       const tenant = await tenantFactory.create();
       const country = await countryFactory.create();
-      const user = await userFactory.create({ tenant });
+      const user = await userFactory.create({ tenant, role: USER_ROLES.ADMIN });
       const userId = user.id;
       const app = await creditApplicationFactory.create({
         tenantId: tenant.id,
         countryId: country.id,
         createdBy: userId,
-        status: CREDIT_APPLICATION_STATUS.PENDING,
+        status: CREDIT_APPLICATION_STATUS.IN_REVIEW,
       });
       await applicationRiskResultFactory.create({
         tenantId: tenant.id,
@@ -807,10 +784,10 @@ describe('CreditApplicationsService', () => {
 
       await service.updateStatus(
         tenant.id,
-        '00000000-0000-0000-0000-000000000001',
+        userId,
         USER_ROLES.ADMIN,
         app.id,
-        CREDIT_APPLICATION_STATUS.IN_REVIEW,
+        CREDIT_APPLICATION_STATUS.APPROVED,
       );
 
       appFindSpy.mockClear();

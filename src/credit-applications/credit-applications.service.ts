@@ -360,6 +360,7 @@ export class CreditApplicationsService {
       'Credit application status updated',
     );
 
+    this.cache.del(this.buildApplicationDetailCacheKey(tenantId, id));
     return updated;
   }
 
@@ -398,9 +399,8 @@ export class CreditApplicationsService {
     }
 
     if (!regex.test(documentId)) {
-      const label = country.documentLabel ?? 'document';
       throw new BadRequestException(
-        `Invalid document format for country`,
+        EXCEPTION_RESPONSE.INVALID_DOCUMENT_FORMAT_FOR_COUNTRY,
       );
     }
   }

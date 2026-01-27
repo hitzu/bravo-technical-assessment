@@ -32,6 +32,41 @@ El objetivo es mostrar cómo diseñaría e implementaría un sistema de este tip
 - Mantine UI
 - Axios
 
+### 1.1. Documentación (para el revisor)
+
+- `docs/technical assessment.md`: enunciado oficial de la prueba.
+- `docs/data_model.ts`: modelo de datos (ER + explicación tabla por tabla).
+- `docs/technical_decisions.md`: decisiones técnicas y tradeoffs (multi-tenant, cola en Postgres, strategy por país, cache, webhooks, polling).
+- `docs/future_work.md`: escalabilidad, grandes volúmenes e ideas de trabajo futuro.
+- `docs/design doc.md`: diseño detallado (más largo; útil si quieres profundizar).
+
+### 1.2. Modelo de datos
+
+Documento dedicado: `docs/data_model.ts`.
+
+Incluye:
+- diagrama ER (Mermaid) con las tablas principales,
+- cómo se implementa multi-tenant con `tenant_id`,
+- cómo la cola `async_jobs` soporta el procesamiento asíncrono,
+- cómo se registran resultados de riesgo (`application_risk_results`) y webhooks (`webhook_deliveries`).
+
+### 1.3. Decisiones técnicas clave
+
+Documento dedicado: `docs/technical_decisions.md`.
+
+Resume por qué se eligió:
+- token dev `DEV.v1...` (demo-friendly y revocable),
+- cola en Postgres (trigger + `SKIP LOCKED`),
+- Strategy pattern por país y `country_rules` versionado,
+- cache in-memory con `CachePort` (puerto para Redis),
+- polling en el frontend (simplicidad).
+
+### 1.4. Escalabilidad y trabajo futuro
+
+Documento dedicado: `docs/future_work.md`.
+
+Cubre índices recomendados, particionado/archivado, consultas críticas, evolución de colas y cache distribuida, y una lista de mejoras de producto/observabilidad.
+
 ---
 
 ## 2. Cómo correr el proyecto en local
@@ -48,25 +83,27 @@ En la raíz del repo:
 
 ```bash
 docker compose up -d
+```
 
 Esto levanta dos bases:
 
-Dev: bravo_dev en localhost:57434
+- Dev: `bravo_dev` en `localhost:57434`
 
-Test: bravo_test en localhost:57435
+- Test: `bravo_test` en `localhost:57435`
 
 Nota: ajusté .env.example para que el DB_PORT coincida con 57434 (dev).
 
-2.3. Variables de entorno
+### 2.3. Variables de entorno
 
-Usamos .env.${NODE_ENV}:
+Usamos `.env.${NODE_ENV}`:
 
-Desarrollo: .env.local
+- Desarrollo: `.env.local`
 
-Tests: .env.test
+- Tests: `.env.test`
 
 Como base:
 
+```bash
 # .env.local
 NODE_ENV=local
 
@@ -81,8 +118,11 @@ ASYNC_JOBS_CRON_LIMIT=10
 
 # URL base para el “partner” mock (webhook)
 PARTNER_BASE_URL=http://localhost:3000
+```
 
-2.4. Instalar dependencias + migraciones + seeds
+### 2.4. Instalar dependencias + migraciones + seeds
+
+```bash
 pnpm install
 
 # Migraciones
@@ -90,25 +130,33 @@ pnpm db:run
 
 # Seeds de datos de demo (countries + rules, etc.)
 pnpm seed:dev-data
+```
 
-2.5. Correr backend y frontend
+### 2.5. Correr backend y frontend
 
 Backend:
 
+```bash
 pnpm dev   # NestJS en http://localhost:3000
+```
 
 
 Frontend:
 
+```bash
 pnpm dev:front  # Vite en http://localhost:5173
+```
 
 
-Swagger: http://localhost:3000/api
+- Swagger: `http://localhost:3000/api`
 
-Front: http://localhost:5173
+- Front: `http://localhost:5173`
 
-3. Backend – Overview
-3.1. Autenticación y RBAC
+---
+
+## 3. Backend – Overview
+
+### 3.1. Autenticación y RBAC
 
 Auth “dev” basada en un token:
 
@@ -408,7 +456,7 @@ Este endpoint:
 
 Guarda un registro en webhook_deliveries.
 
-Marca el delivery como SUCCESS o FAILED según el escenario.
+Hoy marca el delivery como SUCCESS (200 OK) como parte del mock.
 
 Es un lugar claro para:
 
@@ -418,35 +466,66 @@ Retries.
 
 DSL de auditoría de “qué vio el partner y cuándo”.
 
-7. Frontend – Cómo probarlo
+---
 
-Flujo recomendado para el revisor:
+## 7. Cómo usar el sistema (tutorial para el revisor)
 
-Ir a http://localhost:5173.
+La idea es que puedas ver el flujo end-to-end sin conocer NestJS.
 
-En el selector de usuario, el frontend llama a GET /users (público) y muestra usuarios de demo.
+### 7.1. Abrir el frontend
 
-Seleccionar un usuario ADMIN de un tenant.
+- Abrí `http://localhost:5173`
 
-El frontend hace POST /auth/login para ese userId.
+### 7.2. Elegir usuario y loguearse (sin fricción)
 
-Guarda el token dev en localStorage.
+1. En la pantalla de login, el frontend llama a **`GET /users`** (público, solo demo) para poblar el selector.
+2. Elegí un usuario con rol **`ADMIN`** (para poder hacer override de estados y procesar jobs manualmente).
+3. El frontend hace **`POST /auth/login`** con el `userId` elegido.
+4. El token dev se guarda como `authToken` en `localStorage` y se envía en cada request como `Authorization: Bearer ...`.
 
-Una vez logueado:
+### 7.3. Crear solicitudes y “forzar” decisiones (MX / PT)
 
-Verás el tenant actual en el header.
+1. En “Crear solicitud de crédito” completá:
+   - País: **MX** o **PT** (ambos usan reglas de ratio deuda/ingreso + monto/ingreso).
+   - Ingreso mensual (monthlyIncome) y cantidad solicitada (requestedAmount).
+2. Para ver decisiones distintas de forma intuitiva:
+   - **APPROVE**: `requestedAmount` bajo en relación a `monthlyIncome` (por ejemplo ratio ~0.10) y DTI bajo.
+   - **REVIEW**: valores intermedios (por ejemplo ratio ~0.70).
+   - **REJECT**: ratio muy alto (por ejemplo > 0.80) o DTI alto.
 
-Podrás:
+### 7.4. Ver la cola `async_jobs` en acción
 
-Crear nuevas solicitudes.
+Cuando creás una solicitud:
+- Postgres encola automáticamente un job `RISK_EVAL` en `async_jobs` (trigger `AFTER INSERT`).
 
-Listar solicitudes con filtros (país, estado, etc.).
+El procesamiento ocurre de dos formas:
+- **Automático**: si `ASYNC_JOBS_CRON_ENABLED=true`, el worker procesa jobs periódicamente.
+- **Manual (debug)**: desde Swagger (`http://localhost:3000/api`) podés llamar **`POST /jobs/process?limit=10`** (requiere ADMIN).
 
-Ver detalle de una solicitud (incluyendo último resultado de riesgo).
+### 7.5. Ver el resultado de riesgo y el estado
 
-Ver una tabla con entradas en DLQ.
+1. En la tabla “Solicitudes de crédito”, hacé click en “Ver detalle”.
+2. El detalle muestra:
+   - el estado actual (`PENDING`, `IN_REVIEW`, `APPROVED`, `REJECTED`, `ERROR`),
+   - el último resultado de riesgo (decision + ratios + `rawBankSnapshot`).
 
-El frontend refresca los datos usando polling (intervalos cortos) para simular “near realtime”.
+El frontend refresca la lista por **polling** cada ~5s para simular “near realtime”.
+
+### 7.6. Ver DLQ y cómo llenarla con `forceRiskFailure`
+
+1. Al crear una solicitud, marcá el checkbox **“Forzar fallo de riesgo”**.
+2. El worker marcará el job como `DLQ` y la solicitud como `ERROR`.
+3. En el frontend, revisá “Jobs en DLQ” (polling ~10s). El endpoint detrás es **`GET /applications/risk-evaluations/dlq`**.
+
+### 7.7. Ver un webhook registrado en `webhook_deliveries`
+
+Cuando el worker procesa un `RISK_EVAL`, también llama al endpoint mock:
+- `POST /mock/partner/webhooks/applications/:applicationId/risk-updated`
+
+Eso persiste un registro en `webhook_deliveries`. Para verlo:
+1. Abrí Swagger (`http://localhost:3000/api`)
+2. Llamá **`GET /webhook-deliveries`** (requiere ADMIN)
+3. Opcional: `GET /webhook-deliveries/:id` para ver request/headers/response.
 
 8. Validaciones – Cómo funcionan
 8.1. Nivel DTO (HTTP)
@@ -622,51 +701,21 @@ Mejorar el catálogo de reglas por país y su UI de administración.
 (Done) `Makefile` / `Justfile` con comandos cortos (up, dev, test, etc.).
 
 (Done) Documentación de escalabilidad (índices, particionado, consultas, archivado) en este README.
-```
 
 ---
 
 ## Escalabilidad y manejo de grandes volúmenes de datos (análisis)
 
-La solución está pensada para evolucionar hacia un sistema que puede manejar **millones** de solicitudes, manteniendo buen performance y permitiendo escalar horizontalmente.
+Esta sección quedó extraída a un documento dedicado para que el README sea más “navegable”.
 
-### Índices recomendados (Postgres)
+- Ver: `docs/future_work.md`
 
-- **`credit_applications`** (lecturas más frecuentes):
-  - `(tenant_id, status, created_at DESC)` para listados por estado (ya modelado como `ix_credit_applications_tenant_status_created_at`).
-  - `(tenant_id, country_id, created_at DESC)` para filtros por país + orden por fecha.
-  - `(tenant_id, created_by, created_at DESC)` para el scoping de AGENT (mis solicitudes).
-- **`application_risk_results`**:
-  - `(tenant_id, application_id, created_at DESC)` para “último resultado” por solicitud.
-- **`async_jobs`**:
-  - `(status, created_at)` para consumo FIFO-ish de jobs.
-  - `(tenant_id, status)` si se aisla consumo por tenant (ya existe en migración).
-- **`webhook_deliveries`**:
-  - `(tenant_id, type, status, created_at DESC)` para auditoría y debug operacional.
-
-### Particionado (cuando crezca)
-
-Si `credit_applications` crece hacia decenas de millones:
-- **Particionar por rango de tiempo** (mensual/trimestral) en `created_at` para mantener índices pequeños y acelerar queries por rango de fechas.
-- Alternativa: **hash partitioning por `tenant_id`** si el acceso es predominantemente por tenant y los tenants son “grandes”.
-
-### Consultas críticas y cómo evitar cuellos de botella
-
-- **Listados**: preferir paginación con índices compuestos. Para grandes volúmenes, migrar de `offset/limit` a **keyset pagination** (por ejemplo usando `(created_at, id)`).
-- **Detalle + último risk**: mantener el acceso por `(tenant_id, application_id)` y `created_at DESC`. Si se vuelve hot path, considerar materializar “último risk result id” en `credit_applications`.
-- **Consumo de jobs**: `FOR UPDATE SKIP LOCKED` permite N workers en paralelo sin contención fuerte.
-
-### Archivado / retención
-
-- Definir retención por negocio (ej. 12–24 meses) y mover registros antiguos a:
-  - tabla `credit_applications_archive`, o
-  - particiones “frías” (detach) en storage más barato.
-- (Opcional) comprimir/compactar JSONB grandes (`raw_bank_snapshot`, request/response bodies) o tokenizar/encriptar si fuese PII real.
-
-### Caché
-
-- Cachear catálogos (`/countries`, `/tenants`) y detalle (`/applications/:id`) con TTL.
-- En un entorno multi-réplica, reemplazar in-memory por **Redis** (ya existe `CachePort`) y definir estrategia de invalidación basada en eventos/escrituras.
+Resumen de lo que cubre:
+- índices recomendados por tabla (listados, “último resultado”, consumo FIFO-ish, auditoría),
+- particionamiento/archivado,
+- consultas críticas y patrones de acceso,
+- colas y procesamiento masivo de jobs,
+- cache distribuida y observabilidad.
 
 ## Despliegue en Kubernetes (referencia)
 

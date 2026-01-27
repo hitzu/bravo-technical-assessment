@@ -19,6 +19,7 @@ import { CreditApplication } from '../credit-applications/entities/credit-applic
 import { DefaultRiskStrategy } from '../credit-applications/risk-strategies/default-risk.strategy';
 import { EsRiskStrategy } from '../credit-applications/risk-strategies/es-risk.strategy';
 import { MxRiskStrategy } from '../credit-applications/risk-strategies/mx-risk.strategy';
+import { PtRiskStrategy } from '../credit-applications/risk-strategies/pt-risk.strategy';
 import { RiskStrategyRegistryService } from '../credit-applications/risk-strategies/risk-strategy-registry.service';
 import { RiskEvaluatorService } from '../credit-applications/risk-evaluator.service';
 import { Country } from '../countries/entities/country.entity';
@@ -67,6 +68,7 @@ describe('AsyncJobsProcessorService', () => {
         RiskStrategyRegistryService,
         EsRiskStrategy,
         MxRiskStrategy,
+        PtRiskStrategy,
         DefaultRiskStrategy,
         {
           provide: WebhookDeliveriesService,

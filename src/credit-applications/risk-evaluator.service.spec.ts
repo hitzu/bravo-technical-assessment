@@ -13,6 +13,7 @@ import { RiskEvaluatorService } from './risk-evaluator.service';
 import { DefaultRiskStrategy } from './risk-strategies/default-risk.strategy';
 import { EsRiskStrategy } from './risk-strategies/es-risk.strategy';
 import { MxRiskStrategy } from './risk-strategies/mx-risk.strategy';
+import { PtRiskStrategy } from './risk-strategies/pt-risk.strategy';
 import { RiskStrategyRegistryService } from './risk-strategies/risk-strategy-registry.service';
 
 describe('RiskEvaluatorService', () => {
@@ -29,6 +30,7 @@ describe('RiskEvaluatorService', () => {
         RiskStrategyRegistryService,
         EsRiskStrategy,
         MxRiskStrategy,
+        PtRiskStrategy,
         DefaultRiskStrategy,
       ],
     }).compile();
