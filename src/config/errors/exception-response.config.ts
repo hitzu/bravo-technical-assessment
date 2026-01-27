@@ -6,6 +6,7 @@ enum ErrorMessages {
   CREDIT_APPLICATION_NOT_FOUND = 'CREDIT_APPLICATION_NOT_FOUND',
   WEBHOOK_DELIVERY_NOT_FOUND = 'WEBHOOK_DELIVERY_NOT_FOUND',
   APPLICATION_RISK_RESULT_NOT_FOUND = 'APPLICATION_RISK_RESULT_NOT_FOUND',
+  INVALID_DOCUMENT_FORMAT = 'INVALID_DOCUMENT_FORMAT',
   // Add more error messages as needed
 }
 
@@ -15,30 +16,34 @@ export const EXCEPTION_RESPONSE: Record<
 > = {
   [ErrorMessages.USER_NOT_FOUND]: {
     code: 1,
-    message: 'user not found',
+    message: 'usuario no encontrado',
   },
   [ErrorMessages.INSUFFICIENT_ROLE]: {
     code: 2,
-    message: 'insufficient role',
+    message: 'rol insuficiente',
   },
   [ErrorMessages.TENANT_ID_MISMATCH]: {
     code: 3,
-    message: 'tenant ID mismatch',
+    message: 'el ID del tenant no coincide',
   },
   [ErrorMessages.INVALID_COUNTRY]: {
     code: 4,
-    message: 'invalid country',
+    message: 'país inválido',
   },
   [ErrorMessages.CREDIT_APPLICATION_NOT_FOUND]: {
     code: 5,
-    message: 'credit application not found',
+    message: 'solicitud de crédito no encontrada',
   },
   [ErrorMessages.WEBHOOK_DELIVERY_NOT_FOUND]: {
     code: 6,
-    message: 'webhook delivery not found',
+    message: 'entrega de webhook no encontrada',
   },
   [ErrorMessages.APPLICATION_RISK_RESULT_NOT_FOUND]: {
     code: 7,
-    message: 'application risk result not found',
+    message: 'resultado de riesgo de la solicitud no encontrado',
+  },
+  [ErrorMessages.INVALID_DOCUMENT_FORMAT]: {
+    code: 8,
+    message: 'formato de documento inválido',
   },
 };

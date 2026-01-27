@@ -131,6 +131,140 @@ describe('CreditApplicationsService', () => {
       expect(riskResult).toBeNull();
     });
 
+    it('accepts a valid ES document when country has a pattern', async () => {
+      // Arrange
+      const tenant = await tenantFactory.create();
+      const country = await countryFactory.create({
+        code: 'ES',
+        status: COUNTRY_STATUS.ACTIVE,
+        documentLabel: 'DNI/NIF',
+        documentRegexPattern: '^[0-9]{7,8}[A-Z]$',
+      });
+      const user = await userFactory.create({ tenant });
+
+      const dto: CreateCreditApplicationDto = {
+        countryId: country.id,
+        fullName: 'Jane Doe',
+        documentId: '12345678Z',
+        monthlyIncome: 100,
+        requestedAmount: 100,
+        forceRiskFailure: false,
+        tenantId: tenant.id,
+      };
+
+      // Act
+      const created = await service.createApplication(
+        tenant.id,
+        user.id,
+        USER_ROLES.AGENT,
+        dto,
+      );
+
+      // Assert
+      expect(created.id).toBeDefined();
+      expect(created.countryId).toBe(country.id);
+      expect(created.documentId).toBe(dto.documentId);
+    });
+
+    it('rejects an invalid ES document when country has a pattern', async () => {
+      // Arrange
+      const tenant = await tenantFactory.create();
+      const country = await countryFactory.create({
+        code: 'ES',
+        status: COUNTRY_STATUS.ACTIVE,
+        documentLabel: 'DNI/NIF',
+        documentRegexPattern: '^[0-9]{7,8}[A-Z]$',
+      });
+
+      const dto: CreateCreditApplicationDto = {
+        countryId: country.id,
+        fullName: 'Jane Doe',
+        documentId: 'NOT-A-DNI',
+        monthlyIncome: 100,
+        requestedAmount: 100,
+        forceRiskFailure: false,
+        tenantId: tenant.id,
+      };
+
+      // Act / Assert
+      await expect(
+        service.createApplication(
+          tenant.id,
+          '00000000-0000-0000-0000-000000000001',
+          USER_ROLES.ADMIN,
+          dto,
+        ),
+      ).rejects.toEqual(
+        new BadRequestException('Invalid DNI/NIF format for country ES'),
+      );
+    });
+
+    it('accepts any documentId when country has no pattern', async () => {
+      // Arrange
+      const tenant = await tenantFactory.create();
+      const country = await countryFactory.create({
+        code: 'BR',
+        status: COUNTRY_STATUS.ACTIVE,
+        documentLabel: 'CPF',
+        documentRegexPattern: null,
+      });
+      const user = await userFactory.create({ tenant });
+
+      const dto: CreateCreditApplicationDto = {
+        countryId: country.id,
+        fullName: 'Jane Doe',
+        documentId: 'anything-goes',
+        monthlyIncome: 100,
+        requestedAmount: 100,
+        forceRiskFailure: false,
+        tenantId: tenant.id,
+      };
+
+      // Act
+      const created = await service.createApplication(
+        tenant.id,
+        user.id,
+        USER_ROLES.AGENT,
+        dto,
+      );
+
+      // Assert
+      expect(created.id).toBeDefined();
+    });
+
+    it('fails open when country regex is misconfigured (does not crash request)', async () => {
+      // Arrange
+      const tenant = await tenantFactory.create();
+      const country = await countryFactory.create({
+        code: 'ES',
+        status: COUNTRY_STATUS.ACTIVE,
+        documentLabel: 'DNI/NIF',
+        documentRegexPattern: '(*invalid[',
+      });
+      const user = await userFactory.create({ tenant });
+
+      const dto: CreateCreditApplicationDto = {
+        countryId: country.id,
+        fullName: 'Jane Doe',
+        documentId: 'NOT-A-DNI',
+        monthlyIncome: 100,
+        requestedAmount: 100,
+        forceRiskFailure: false,
+        tenantId: tenant.id,
+      };
+
+      // Act
+      const created = await service.createApplication(
+        tenant.id,
+        user.id,
+        USER_ROLES.AGENT,
+        dto,
+      );
+
+      // Assert
+      expect(created.id).toBeDefined();
+    });
+
     it('throws BadRequestException when monthlyIncome is negative', async () => {
       // Arrange
       const tenant = await tenantFactory.create();

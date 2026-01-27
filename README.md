@@ -495,6 +495,14 @@ Enums (USER_ROLES, CREDIT_APPLICATION_STATUS, ASYNC_JOB_STATUS, etc.).
 
 El trigger garantiza que toda nueva solicitud tiene su job RISK_EVAL encolado.
 
+8.4. Per-country document validation
+
+El `documentId` se valida al crear una solicitud (`POST /applications`) según el país seleccionado.
+
+- **Dónde vive la regla**: `countries.document_label` y `countries.document_regex_pattern`.
+- **Cómo se aplica**: en `CreditApplicationsService.createApplication` (antes de persistir/enqueue).
+- **Importante**: los patrones son **simplificados para la prueba técnica** (sanity checks), no validación oficial “production-grade”.
+
 9. Cómo agregar un nuevo país (paso a paso)
 
 Supongamos que queremos agregar Chile (CL).

@@ -53,11 +53,38 @@ export function ApplicationForm(props: {
       countryId: (v) => (v ? null : 'Requerido'),
       tenantId: (v) => (v ? null : 'Requerido'),
       fullName: (v) => (v.trim() ? null : 'Requerido'),
-      documentId: (v) => (v.trim() ? null : 'Requerido'),
+      documentId: (v, values) => {
+        const trimmed = v.trim();
+        if (!trimmed) return 'Requerido';
+        const selectedCountry = countries.find(
+          (c) => c.id === values.countryId,
+        );
+        const pattern = selectedCountry?.documentRegexPattern?.trim();
+        const example = selectedCountry?.documentExample ?? '';
+        if (!pattern) return null;
+        try {
+          const regex = new RegExp(pattern);
+          if (!regex.test(trimmed)) {
+            const label = selectedCountry?.documentLabel ?? 'documento';
+            return `Formato inválido (${label}) por ejemplo: ${example}`;
+          }
+          return null;
+        } catch {
+          return null;
+        }
+      },
       monthlyIncome: (v) => (typeof v === 'number' ? null : 'Requerido'),
       requestedAmount: (v) => (typeof v === 'number' ? null : 'Requerido'),
     },
   });
+
+  const selectedCountry = useMemo(
+    () => countries.find((c) => c.id === form.values.countryId) ?? null,
+    [countries, form.values.countryId],
+  );
+
+  const documentLabel = selectedCountry?.documentLabel ?? null;
+  const documentPattern = selectedCountry?.documentRegexPattern?.trim() ?? '';
 
   const countryOptions = useMemo(
     () =>
@@ -175,8 +202,13 @@ export function ApplicationForm(props: {
           {...form.getInputProps('fullName')}
         />
         <TextInput
-          label="Document"
-          placeholder="XEXX010101000"
+          label={documentLabel ? `Document (${documentLabel})` : 'Document'}
+          placeholder={documentLabel ? `Ej: ${documentLabel}` : 'XEXX010101000'}
+          description={
+            documentPattern
+              ? 'Validado según el formato del país seleccionado.'
+              : undefined
+          }
           {...form.getInputProps('documentId')}
         />
 

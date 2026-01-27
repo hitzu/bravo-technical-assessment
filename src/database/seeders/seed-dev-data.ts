@@ -13,6 +13,9 @@ type SeedCountryInput = {
   code: string;
   name: string;
   status: COUNTRY_STATUS;
+  documentLabel?: string | null;
+  documentRegexPattern?: string | null;
+  documentExample?: string | null;
 };
 
 type SeedTenantInput = {
@@ -43,13 +46,57 @@ type SeedCountryRuleInput = {
   minRiskScoreReview?: number | null;
 };
 
+// NOTE: These patterns are intentionally simplified for the assessment (basic sanity checks),
+// not production-grade official document validation.
 const COUNTRIES: SeedCountryInput[] = [
-  { code: 'ES', name: 'Spain', status: COUNTRY_STATUS.ACTIVE },
-  { code: 'PT', name: 'Portugal', status: COUNTRY_STATUS.INACTIVE },
-  { code: 'IT', name: 'Italy', status: COUNTRY_STATUS.INACTIVE },
-  { code: 'MX', name: 'Mexico', status: COUNTRY_STATUS.ACTIVE },
-  { code: 'CO', name: 'Colombia', status: COUNTRY_STATUS.INACTIVE },
-  { code: 'BR', name: 'Brazil', status: COUNTRY_STATUS.INACTIVE },
+  {
+    code: 'ES',
+    name: 'Spain',
+    status: COUNTRY_STATUS.ACTIVE,
+    documentLabel: 'DNI/NIF',
+    documentRegexPattern: '^[0-9]{7,8}[A-Z]$',
+    documentExample: '01234567A',
+  },
+  {
+    code: 'PT',
+    name: 'Portugal',
+    status: COUNTRY_STATUS.INACTIVE,
+    documentLabel: 'NIF',
+    documentRegexPattern: '^[0-9]{9}$',
+    documentExample: '123456789',
+  },
+  {
+    code: 'IT',
+    name: 'Italy',
+    status: COUNTRY_STATUS.INACTIVE,
+    documentLabel: 'Codice fiscale',
+    documentRegexPattern: '^[A-Z0-9]{11,16}$',
+    documentExample: 'ABCDE12345678901',
+  },
+  {
+    code: 'MX',
+    name: 'Mexico',
+    status: COUNTRY_STATUS.ACTIVE,
+    documentLabel: 'CURP/RFC',
+    documentRegexPattern: '^[A-Z0-9]{10,18}$',
+    documentExample: 'XAXX010101000',
+  },
+  {
+    code: 'CO',
+    name: 'Colombia',
+    status: COUNTRY_STATUS.INACTIVE,
+    documentLabel: 'CC/NIT',
+    documentRegexPattern: '^[0-9]{6,12}$',
+    documentExample: '123456789012',
+  },
+  {
+    code: 'BR',
+    name: 'Brazil',
+    status: COUNTRY_STATUS.INACTIVE,
+    documentLabel: 'CPF',
+    documentRegexPattern: '^[0-9]{11}$',
+    documentExample: '12345678901',
+  },
 ];
 
 const TENANTS: SeedTenantInput[] = [
@@ -137,6 +184,9 @@ async function upsertCountry(seed: SeedCountryInput): Promise<Country> {
   if (existing) {
     existing.name = seed.name;
     existing.status = seed.status;
+    existing.documentLabel = seed.documentLabel ?? null;
+    existing.documentRegexPattern = seed.documentRegexPattern ?? null;
+    existing.documentExample = seed.documentExample ?? null;
     return await repo.save(existing);
   }
 
@@ -144,6 +194,9 @@ async function upsertCountry(seed: SeedCountryInput): Promise<Country> {
     code,
     name: seed.name,
     status: seed.status,
+    documentLabel: seed.documentLabel ?? null,
+    documentRegexPattern: seed.documentRegexPattern ?? null,
+    documentExample: seed.documentExample ?? null,
   });
   return await repo.save(created);
 }

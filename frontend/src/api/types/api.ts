@@ -15,6 +15,9 @@ export type Country = {
   id: string;
   code: string;
   name: string;
+  documentLabel?: string | null;
+  documentRegexPattern?: string | null;
+  documentExample?: string | null;
 };
 
 export type ApplicationRiskResult = {

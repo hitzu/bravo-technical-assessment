@@ -27,7 +27,8 @@ export class CreateCreditApplicationDto {
   fullName!: string;
 
   @ApiProperty({
-    description: 'Applicant document identifier',
+    description:
+      'Applicant document identifier. Validated according to the country-specific document format (DNI/NIF, CURP, etc.).',
     example: 'XEXX010101000',
   })
   @IsNotEmpty()

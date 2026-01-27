@@ -72,6 +72,8 @@ export class CreditApplicationsService {
       throw new BadRequestException(EXCEPTION_RESPONSE.INVALID_COUNTRY);
     }
 
+    this.validateDocumentForCountry(dto.documentId, country);
+
     const entity = this.creditApplicationsRepository.create({
       tenantId,
       createdBy: userId,
@@ -353,6 +355,41 @@ export class CreditApplicationsService {
     const normalizedRole = role as unknown as USER_ROLES;
     if (!allowed.includes(normalizedRole)) {
       throw new ForbiddenException(EXCEPTION_RESPONSE.INSUFFICIENT_ROLE);
+    }
+  }
+
+  private validateDocumentForCountry(documentId: unknown, country: Country): void {
+    const pattern = country.documentRegexPattern?.trim();
+    if (!pattern) {
+      return;
+    }
+
+    if (typeof documentId !== 'string' || documentId.trim().length === 0) {
+      throw new BadRequestException(
+        `documentId is required for country ${country.code}`,
+      );
+    }
+
+    let regex: RegExp;
+    try {
+      regex = new RegExp(pattern);
+    } catch (error) {
+      this.logger.error(
+        { countryCode: country.code, documentRegexPattern: pattern, err: error },
+        'Invalid country document regex pattern (skipping validation)',
+      );
+      this.logger.warn(
+        { countryCode: country.code },
+        'Skipping document validation due to invalid country regex pattern',
+      );
+      return;
+    }
+
+    if (!regex.test(documentId)) {
+      const label = country.documentLabel ?? 'document';
+      throw new BadRequestException(
+        `Invalid document format for country`,
+      );
     }
   }
 

@@ -13,6 +13,19 @@ export class Country extends BaseTimeEntity {
   @Column('varchar', { length: 100, name: 'name' })
   name!: string;
 
+  @Column('varchar', { length: 100, name: 'document_label', nullable: true })
+  documentLabel!: string | null;
+
+  @Column('varchar', {
+    length: 255,
+    name: 'document_regex_pattern',
+    nullable: true,
+  })
+  documentRegexPattern!: string | null;
+
+  @Column('varchar', { length: 100, name: 'document_example', nullable: true })
+  documentExample!: string | null;
+
   @Column({
     type: 'enum',
     enum: COUNTRY_STATUS,

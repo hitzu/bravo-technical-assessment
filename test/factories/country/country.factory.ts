@@ -19,6 +19,8 @@ export class CountryFactory extends Factory<Country> {
     return {
       code: faker.string.alpha({ length: 2 }).toUpperCase(),
       name: faker.location.country(),
+      documentLabel: null,
+      documentRegexPattern: null,
       status: faker.helpers.arrayElement<COUNTRY_STATUS>(
         Object.values(COUNTRY_STATUS),
       ),
