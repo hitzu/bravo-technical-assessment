@@ -5,7 +5,7 @@ metadata:
   namespace: bravo
 data:
   # Runtime
-  NODE_ENV: "production" # NOTE: the code treats NODE_ENV="prod" as production in logger config.
+  NODE_ENV: "prod" # NOTE: the code treats NODE_ENV="prod" as production in logger config.
   PORT: "3000"
 
   # Async jobs

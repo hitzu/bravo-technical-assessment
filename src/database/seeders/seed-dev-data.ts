@@ -127,6 +127,17 @@ const COUNTRY_RULES: SeedCountryRuleInput[] = [
     requestedAmountToMonthlyIncomeApproveMax: 6,
     requestedAmountToMonthlyIncomeReviewMax: 12,
   },
+  {
+    countryCode: 'PT',
+    version: 1,
+    isActive: true,
+    documentMinLength: 9,
+    documentMaxLength: 9,
+    dtiApproveMax: 0.25,
+    dtiReviewMax: 0.55,
+    requestedAmountToMonthlyIncomeApproveMax: 6,
+    requestedAmountToMonthlyIncomeReviewMax: 12,
+  },
 ];
 
 function slugify(value: string): string {

@@ -97,7 +97,7 @@ export class WebhookDeliveriesService {
       throw new NotFoundException(EXCEPTION_RESPONSE.APPLICATION_RISK_RESULT_NOT_FOUND);
     }
 
-    this.updateApplicationStatus({
+    await this.updateApplicationStatus({
       applicationId: params.applicationId,
       status: mapDecisionToStatus(riskResult.decision),
     })

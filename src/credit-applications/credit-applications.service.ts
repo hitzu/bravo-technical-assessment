@@ -337,7 +337,7 @@ export class CreditApplicationsService {
     if (!application) {
       throw new NotFoundException(EXCEPTION_RESPONSE.CREDIT_APPLICATION_NOT_FOUND);
     }
-    this.logger.log({ application }, ' en update status application porque no se que show :( jajajaja');
+
     if (application.status !== CREDIT_APPLICATION_STATUS.IN_REVIEW) {
       throw new BadRequestException(
         EXCEPTION_RESPONSE.CREDIT_APPLICATION_STATUS_CAN_ONLY_BE_MANUALLY_CHANGED_FROM_IN_REVIEW,

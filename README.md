@@ -617,14 +617,56 @@ Completar el flujo de webhooks outbound con payload real, retries y idempotencia
 
 Mejorar el catálogo de reglas por país y su UI de administración.
 
-Añadir manifiestos de Kubernetes (backend, worker, frontend, DB).
+(Done) Manifiestos de Kubernetes (backend, worker, frontend, ingress). La base de datos se asume externa/managed.
 
-Agregar un Makefile/Justfile con comandos cortos (make up, make dev, etc.).
+(Done) `Makefile` / `Justfile` con comandos cortos (up, dev, test, etc.).
 
-Documentar en más detalle la estrategia de índices, particionado y archivado.
+(Done) Documentación de escalabilidad (índices, particionado, consultas, archivado) en este README.
 ```
 
 ---
+
+## Escalabilidad y manejo de grandes volúmenes de datos (análisis)
+
+La solución está pensada para evolucionar hacia un sistema que puede manejar **millones** de solicitudes, manteniendo buen performance y permitiendo escalar horizontalmente.
+
+### Índices recomendados (Postgres)
+
+- **`credit_applications`** (lecturas más frecuentes):
+  - `(tenant_id, status, created_at DESC)` para listados por estado (ya modelado como `ix_credit_applications_tenant_status_created_at`).
+  - `(tenant_id, country_id, created_at DESC)` para filtros por país + orden por fecha.
+  - `(tenant_id, created_by, created_at DESC)` para el scoping de AGENT (mis solicitudes).
+- **`application_risk_results`**:
+  - `(tenant_id, application_id, created_at DESC)` para “último resultado” por solicitud.
+- **`async_jobs`**:
+  - `(status, created_at)` para consumo FIFO-ish de jobs.
+  - `(tenant_id, status)` si se aisla consumo por tenant (ya existe en migración).
+- **`webhook_deliveries`**:
+  - `(tenant_id, type, status, created_at DESC)` para auditoría y debug operacional.
+
+### Particionado (cuando crezca)
+
+Si `credit_applications` crece hacia decenas de millones:
+- **Particionar por rango de tiempo** (mensual/trimestral) en `created_at` para mantener índices pequeños y acelerar queries por rango de fechas.
+- Alternativa: **hash partitioning por `tenant_id`** si el acceso es predominantemente por tenant y los tenants son “grandes”.
+
+### Consultas críticas y cómo evitar cuellos de botella
+
+- **Listados**: preferir paginación con índices compuestos. Para grandes volúmenes, migrar de `offset/limit` a **keyset pagination** (por ejemplo usando `(created_at, id)`).
+- **Detalle + último risk**: mantener el acceso por `(tenant_id, application_id)` y `created_at DESC`. Si se vuelve hot path, considerar materializar “último risk result id” en `credit_applications`.
+- **Consumo de jobs**: `FOR UPDATE SKIP LOCKED` permite N workers en paralelo sin contención fuerte.
+
+### Archivado / retención
+
+- Definir retención por negocio (ej. 12–24 meses) y mover registros antiguos a:
+  - tabla `credit_applications_archive`, o
+  - particiones “frías” (detach) en storage más barato.
+- (Opcional) comprimir/compactar JSONB grandes (`raw_bank_snapshot`, request/response bodies) o tokenizar/encriptar si fuese PII real.
+
+### Caché
+
+- Cachear catálogos (`/countries`, `/tenants`) y detalle (`/applications/:id`) con TTL.
+- En un entorno multi-réplica, reemplazar in-memory por **Redis** (ya existe `CachePort`) y definir estrategia de invalidación basada en eventos/escrituras.
 
 ## Despliegue en Kubernetes (referencia)
 
