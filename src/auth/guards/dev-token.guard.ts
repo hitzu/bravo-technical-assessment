@@ -73,9 +73,6 @@ export class DevTokenGuard implements CanActivate {
     }
 
     request.authUser = authUser;
-    this.logger.debug(
-      `Accepted dev token for user ${authUser.userId} in tenant ${authUser.tenantId}`,
-    );
 
     return true;
   }

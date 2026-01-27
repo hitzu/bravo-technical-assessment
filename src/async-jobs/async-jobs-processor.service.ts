@@ -166,34 +166,28 @@ export class AsyncJobsProcessorService {
         )).riskResult;
 
       const url = `http://localhost:3000/mock/partner/webhooks/applications/${application.id}/risk-updated`;
-      // const delivery = await this.webhookDeliveriesService.createRiskResultDelivery({
-      //   tenantId,
-      //   applicationId: application.id,
-      //   url,
-      //   payload: {
-      //     tenantId,
-      //     applicationId: application.id,
-      //     riskResult: {
-      //       id: riskResult.id,
-      //       createdAt: riskResult.createdAt,
-      //       debtToIncomeRatio: riskResult.debtToIncomeRatio,
-      //       riskScore: riskResult.riskScore,
-      //       decision: riskResult.decision,
-      //       rawBankSnapshot: riskResult.rawBankSnapshot,
-      //     },
-      //   },
-      //   headers: {
-      //     source: 'async_jobs',
-      //     jobType: type,
-      //     jobId,
-      //   },
-      // });
+      const idempotencyKey = `risk-updated:${application.id}`;
 
       fetch(url, {
         method: 'POST',
-        body: null,
+        body: JSON.stringify({
+          tenantId,
+          applicationId: application.id,
+          riskResult: {
+            id: riskResult.id,
+            createdAt: riskResult.createdAt,
+            debtToIncomeRatio: riskResult.debtToIncomeRatio,
+            riskScore: riskResult.riskScore,
+            decision: riskResult.decision,
+            rawBankSnapshot: riskResult.rawBankSnapshot,
+          },
+        }),
         headers: {
           'Content-Type': 'application/json',
+          source: 'async_jobs',
+          jobType: type,
+          jobId,
+          'x-idempotency-key': idempotencyKey,
         },
       });
 

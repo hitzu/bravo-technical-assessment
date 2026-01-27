@@ -55,10 +55,13 @@ Incluye `tenantId`, `userId`, `role`.
   - Listados con RBAC.
   - Endpoint(s) internos para disparar/depurar el procesamiento de jobs.
 
-- **Worker (NestJS, comando distinto)**:
-  - Lee trabajos PENDING de `async_jobs`.
-  - Ejecuta evaluación de riesgo.
-  - Actualiza estado de la solicitud y del job.
+- **Worker (servicio en el mismo backend)**:
+  - Lee trabajos `PENDING` de `async_jobs` (con `FOR UPDATE SKIP LOCKED`).
+  - Ejecuta evaluación de riesgo y persiste `application_risk_results`.
+  - Actualiza estado del job y, si corresponde, estado de la solicitud.
+  - Se ejecuta:
+    - vía cron (feature flag) o
+    - manual/debug vía `POST /jobs/process`.
 
 - **Módulo `mock-data`**:
   - Encapsula generación fake (`faker`) y “proveedores” simulados.
@@ -78,10 +81,29 @@ Incluye `tenantId`, `userId`, `role`.
 
 | Campo                                      | Tipo          | Notas                                |
 | ------------------------------------------ | ------------- | ------------------------------------ | --- |
-| `code`                                     | (char(2)      | PK – e.g. 'ES', 'MX', 'BR' .         |
+| `id`                                       | uuid          | **PK** (en el repo, `BaseEntity`)    |
+| `code`                                     | char(2)       | **UNIQUE** – e.g. 'ES', 'MX', 'BR'   |
 | `name`                                     | (varchar(100) | NOT NULL) – e.g. 'España', 'México'. |
 | `status`                                   | (enum/string: | 'ACTIVE / INACTIVE'                  |     |
 | `created_at` / `updated_at` / `deleted_at` | timestamptz   | `deleted_at` para soft-delete        |
+
+#### `country_rules` (knobs por país)
+
+En el repo existe una tabla de reglas versionadas por país, usada por el evaluador para tomar decisiones sin hardcodear umbrales:
+
+| Campo                                         | Tipo        | Notas                                   |
+| --------------------------------------------- | ----------- | --------------------------------------- |
+| `id`                                          | uuid        | PK                                      |
+| `country_id`                                  | uuid        | FK → `countries.id`                     |
+| `version`                                     | int         | versionado (unique por país)            |
+| `is_active`                                   | boolean     | regla activa más reciente               |
+| `document_min_length` / `document_max_length` | int         | knobs de validación de documento        |
+| `dti_approve_max` / `dti_review_max`          | numeric     | thresholds de debt-to-income            |
+| `requested_amount_review_threshold`           | numeric     | umbral de “review” (ej. ES)             |
+| `requested_amount_to_monthly_income_*`        | numeric     | thresholds income vs amount (ej. MX/PT) |
+| `min_monthly_income`                          | numeric     | income mínimo                           |
+| `min_risk_score_*`                            | int         | knobs opcionales para score             |
+| `created_at` / `updated_at` / `deleted_at`    | timestamptz | soft-delete                             |
 
 #### `tenants`
 
@@ -138,71 +160,48 @@ Regla de seguridad (MVP):
 | `id`                        | uuid        | PK                                                      |
 | `tenant_id`                 | uuid        | FK → `tenants.id`                                       |
 | `created_by`                | uuid        | FK → `users.id`                                         |
-| `country`                   | char(2)     | ISO país (ej. `ES`, `MX`)                               |
+| `country_id`                | uuid        | FK → `countries.id`                                     |
 | `full_name`                 | varchar     | PII                                                     |
 | `document_id`               | varchar     | PII (NIF, CURP, etc.)                                   |
 | `monthly_income`            | numeric     |                                                         |
 | `requested_amount`          | numeric     |                                                         |
 | `status`                    | enum        | `PENDING`, `IN_REVIEW`, `APPROVED`, `REJECTED`, `ERROR` |
 | `bank_info`                 | jsonb       | pseudo-anonimizado si es posible                        |
+| `force_risk_failure`        | boolean     | flag de testing: fuerza DLQ/ERROR en el worker          |
 | `created_at` / `updated_at` | timestamptz |                                                         |
 
 Índices propuestos:
 
 - `ix_credit_applications_tenant_status_created_at`: (`tenant_id`, `status`, `created_at` DESC)
 
-### 3.3 Catálogos de bancos y proveedores (mock)
+### 3.3 Resultados de evaluación (implementado)
 
-#### `banks`
+#### `application_risk_results`
 
-| Campo        | Tipo        | Notas                 |
-| ------------ | ----------- | --------------------- |
-| `id`         | uuid        | PK                    |
-| `name`       | varchar     |                       |
-| `country`    | char(2)     |                       |
-| `code`       | varchar     | identificador interno |
-| `created_at` | timestamptz |                       |
+| Campo                                      | Tipo        | Notas                                       |
+| ------------------------------------------ | ----------- | ------------------------------------------- |
+| `id`                                       | uuid        | PK                                          |
+| `application_id`                           | uuid        | FK → `credit_applications.id`               |
+| `tenant_id`                                | uuid        | FK → `tenants.id`                           |
+| `country_id`                               | uuid        | FK → `countries.id`                         |
+| `debt_to_income_ratio`                     | numeric     | `totalDebt / monthlyIncome`                 |
+| `risk_score`                               | int         | score calculado por estrategia              |
+| `decision`                                 | enum        | `APPROVE/REJECT/REVIEW`                     |
+| `raw_bank_snapshot`                        | jsonb       | snapshot normalizado del proveedor bancario |
+| `created_at` / `updated_at` / `deleted_at` | timestamptz | soft-delete                                 |
 
-#### `risk_providers`
+> Nota: el “detalle por banco/proveedor” (tablas separadas) no existe hoy; se guarda un snapshot normalizado en `raw_bank_snapshot`.
 
-| Campo     | Tipo    | Notas |
-| --------- | ------- | ----- |
-| `id`      | uuid    | PK    |
-| `name`    | varchar |       |
-| `country` | char(2) |       |
-| `code`    | varchar |       |
+### 3.4 Catálogos de bancos y proveedores (propuesto / no implementado)
 
-Estos catálogos se siembran vía seed/migración para datos consistentes (local/CI/demo).
+En una iteración siguiente, este diseño contemplaba separar:
 
-### 3.4 Resultados simulados de evaluación
+- `banks`
+- `risk_providers`
+- `application_bank_results`
+- `application_risk_scores`
 
-#### `application_bank_results`
-
-| Campo              | Tipo        | Notas                         |
-| ------------------ | ----------- | ----------------------------- |
-| `id`               | uuid        | PK                            |
-| `application_id`   | uuid        | FK → `credit_applications.id` |
-| `bank_id`          | uuid        | FK → `banks.id`               |
-| `tenant_id`        | uuid        | FK → `tenants.id`             |
-| `total_debt`       | numeric     |                               |
-| `max_credit_offer` | numeric     |                               |
-| `raw_response`     | jsonb       | payload fake del “banco”      |
-| `created_at`       | timestamptz |                               |
-
-#### `application_risk_scores`
-
-| Campo            | Tipo        | Notas                         |
-| ---------------- | ----------- | ----------------------------- |
-| `id`             | uuid        | PK                            |
-| `application_id` | uuid        | FK → `credit_applications.id` |
-| `provider_id`    | uuid        | FK → `risk_providers.id`      |
-| `tenant_id`      | uuid        | FK → `tenants.id`             |
-| `score`          | numeric     | 0–1000 (o similar)            |
-| `risk_band`      | enum/string | `LOW`, `MEDIUM`, `HIGH`       |
-| `raw_response`   | jsonb       |                               |
-| `created_at`     | timestamptz |                               |
-
-Estos registros se generan on-demand por el worker usando `faker`, pero se persisten para trazabilidad real.
+Hoy, para simplificar el MVP, se consolidó en `credit_applications.bank_info` + `application_risk_results.raw_bank_snapshot`.
 
 ### 3.5 Cola de trabajos y DLQ
 
@@ -269,7 +268,7 @@ Tradeoff: el token es simple para la prueba, pero el diseño permite migrar a JW
 
 Flujo:
 
-- `POST /api/applications`
+- `POST /applications`
   - Valida payload (país, documento, ingreso, monto).
   - Infiere `tenant_id` y `created_by` desde el token.
   - Inserta en `credit_applications`.
@@ -306,13 +305,10 @@ LIMIT N;
 - Marca como `RUNNING` e incrementa `attempts`.
 - Para `RISK_EVAL`:
   - Carga `credit_applications` + `tenant_id` del job.
-  - Usa fábrica por país que entrega:
-    - `1..n` BankProviders fake (en `mock-data`)
-    - `1..n` RiskProviders fake
-  - Genera y persiste:
-    - `application_bank_results`
-    - `application_risk_scores`
-  - Decide status final (`APPROVED` / `REJECTED`) por reglas (monto vs ingreso, score, etc.).
+  - Resuelve provider bancario por país (hoy: `ES` y `MX`) y obtiene `bankSnapshot`.
+  - Evalúa riesgo por estrategia por país (registry + fallback) y regla activa de `country_rules` (si existe).
+  - Persiste `application_risk_results` (incluye `raw_bank_snapshot`).
+  - Puede marcar la solicitud como `IN_REVIEW` cuando la decisión es `REVIEW`.
   - Actualiza:
     - `credit_applications.status`
     - `async_jobs.status = DONE` + `processed_at`
@@ -336,16 +332,15 @@ Tradeoffs pensados en prueba:
 
 El comportamiento de bancos/proveedores **no** forma parte del dominio core, sino de un módulo `mock-data` (o similar).
 
-Servicios (ejemplo):
+Servicios (en el repo):
 
-- `MockBankProviderService`
-- `MockRiskProviderService`
+- `BankProviderRegistryService` + providers por país (hoy: ES/MX)
+- `RiskStrategyRegistryService` + estrategias por país (hoy: ES/MX + fallback)
 
 Responsabilidades:
 
-- Leer bancos/proveedores de catálogos.
-- Generar respuestas con `faker` (montos/scores realistas).
-- Persistir `application_bank_results` y `application_risk_scores`.
+- Generar snapshots bancarios (mock) y normalizarlos.
+- Calcular score/DTI/decisión y persistir `application_risk_results`.
 
 Ventaja:
 
@@ -362,9 +357,10 @@ Interfaz `CachePort`:
 
 ```ts
 interface CachePort {
-  get<T>(key: string): T | null;
+  get<T>(key: string): T | undefined;
   set<T>(key: string, value: T, ttlMs?: number): void;
   del(key: string): void;
+  reset(): void;
 }
 ```
 

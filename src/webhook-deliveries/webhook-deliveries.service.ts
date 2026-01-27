@@ -50,6 +50,7 @@ export class WebhookDeliveriesService {
     payload: unknown;
     headers?: Record<string, unknown>;
   }): Promise<WebhookDelivery> {
+    const idempotencyKey = params.headers?.['x-idempotency-key'] as string | undefined;
     const delivery = this.webhookDeliveriesRepository.create({
       tenantId: params.tenantId,
       applicationId: params.applicationId,
@@ -59,7 +60,7 @@ export class WebhookDeliveriesService {
       requestBody: params.payload,
       requestHeaders: params.headers ?? null,
       attemptCount: 0,
-      idempotencyKey: null,
+      idempotencyKey,
       responseStatusCode: null,
       responseBody: null,
       errorMessage: null,
