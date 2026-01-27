@@ -52,7 +52,7 @@ const COUNTRIES: SeedCountryInput[] = [
   {
     code: 'ES',
     name: 'Spain',
-    status: COUNTRY_STATUS.ACTIVE,
+    status: COUNTRY_STATUS.INACTIVE,
     documentLabel: 'DNI/NIF',
     documentRegexPattern: '^[0-9]{7,8}[A-Z]$',
     documentExample: '01234567A',
@@ -60,7 +60,7 @@ const COUNTRIES: SeedCountryInput[] = [
   {
     code: 'PT',
     name: 'Portugal',
-    status: COUNTRY_STATUS.INACTIVE,
+    status: COUNTRY_STATUS.ACTIVE,
     documentLabel: 'NIF',
     documentRegexPattern: '^[0-9]{9}$',
     documentExample: '123456789',
@@ -77,9 +77,9 @@ const COUNTRIES: SeedCountryInput[] = [
     code: 'MX',
     name: 'Mexico',
     status: COUNTRY_STATUS.ACTIVE,
-    documentLabel: 'CURP/RFC',
+    documentLabel: 'CURP',
     documentRegexPattern: '^[A-Z0-9]{10,18}$',
-    documentExample: 'XAXX010101000',
+    documentExample: 'XEXX010101HNMEXX04',
   },
   {
     code: 'CO',
