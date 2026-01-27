@@ -9,7 +9,14 @@ export async function listApplications(
 ): Promise<PaginatedResponse<CreditApplication>> {
   const res = await axiosInstanceWithToken.get<
     PaginatedResponse<CreditApplication>
-  >('/applications', { params });
+  >('/applications', {
+    params,
+    // Avoid browser caching turning into 304 (Axios treats 304 as error)
+    headers: {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    },
+  });
   return res.data;
 }
 

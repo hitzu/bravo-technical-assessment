@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, Divider, Grid, Stack, Text } from '@mantine/core';
+import { Card, Divider, Grid, Stack } from '@mantine/core';
 
 import { AppLayout } from './components/layout/AppLayout';
 import { UserSelector } from './components/auth/UserSelector';

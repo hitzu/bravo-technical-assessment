@@ -122,7 +122,6 @@ export class CreditApplicationsController {
     @AuthUser() authUser: AuthUserContext,
     @Param('id', new ParseUUIDPipe()) id: string,
   ): Promise<CreditApplicationResponseDto> {
-    this.logger.log('¿entro aqio? jajjadsaqwe Getting application detail', id);
     const result = await this.creditApplicationsService.getApplicationWithLatestRiskResult(
       authUser.tenantId,
       authUser.userId,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Drawer,
@@ -22,6 +22,7 @@ import type {
   PaginatedResponse,
 } from '../../api/types/api';
 import type { User } from '../../api/types';
+import { usePolling } from '../../hooks/usePolling';
 
 const STATUS_OPTIONS = [
   'PENDING',
@@ -30,6 +31,8 @@ const STATUS_OPTIONS = [
   'REJECTED',
   'ERROR',
 ] as const;
+
+const APPLICATIONS_POLL_INTERVAL_MS = 5000;
 
 export function ApplicationsTable(props: {
   refreshKey: number;
@@ -50,6 +53,7 @@ export function ApplicationsTable(props: {
     null,
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -71,6 +75,21 @@ export function ApplicationsTable(props: {
     [],
   );
 
+  const pollingEnabled = Boolean(
+    localStorage.getItem('authToken') &&
+      props.currentUser?.id &&
+      props.currentUser?.tenantId,
+  );
+
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    // React StrictMode mounts/unmounts twice in dev; ensure we reset on mount.
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     async function loadCountries() {
@@ -88,35 +107,52 @@ export function ApplicationsTable(props: {
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function loadList() {
+  const hasLoadedOnceRef = useRef(false);
+  const loadList = useCallback(
+    async (opts?: { silent?: boolean; background?: boolean }) => {
+      if (!pollingEnabled) return;
       try {
-        setIsLoading(true);
+        if (!opts?.background) setIsLoading(true);
         const res = await listApplications({
           page,
           pageSize,
           countryId: countryId ?? undefined,
           status: status ?? undefined,
         });
-        if (cancelled) return;
+        if (!isMountedRef.current) return;
         setData(res);
+        setLastUpdatedAt(new Date());
       } catch (err) {
-        if (cancelled) return;
-        showNotification({
-          title: 'Error cargando solicitudes',
-          message: err instanceof Error ? err.message : 'Error desconocido',
-          color: 'red',
-        });
+        if (!isMountedRef.current) return;
+        if (!opts?.silent) {
+          showNotification({
+            title: 'Error cargando solicitudes',
+            message: err instanceof Error ? err.message : 'Error desconocido',
+            color: 'red',
+          });
+        }
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!opts?.background && isMountedRef.current) setIsLoading(false);
+        hasLoadedOnceRef.current = true;
       }
+    },
+    [pollingEnabled, page, pageSize, countryId, status],
+  );
+
+  usePolling(() => loadList({ silent: true, background: hasLoadedOnceRef.current }), {
+    enabled: pollingEnabled,
+    intervalMs: APPLICATIONS_POLL_INTERVAL_MS,
+  });
+
+  const didFirstQueryLoadRef = useRef(false);
+  useEffect(() => {
+    if (!pollingEnabled) return;
+    if (!didFirstQueryLoadRef.current) {
+      didFirstQueryLoadRef.current = true;
+      return;
     }
     void loadList();
-    return () => {
-      cancelled = true;
-    };
-  }, [page, pageSize, countryId, status, props.refreshKey]);
+  }, [pollingEnabled, page, pageSize, countryId, status, props.refreshKey, loadList]);
 
   async function openDetail(id: string) {
     setSelectedId(id);
@@ -149,10 +185,24 @@ export function ApplicationsTable(props: {
     </Table.Tr>
   ));
 
+  const lastUpdatedLabel = useMemo(() => {
+    if (!lastUpdatedAt) return '—';
+    return lastUpdatedAt.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  }, [lastUpdatedAt]);
+
   return (
     <Stack gap="sm">
       <Group justify="space-between" align="flex-end">
-        <Text fw={700}>Solicitudes de crédito</Text>
+        <Stack gap={2}>
+          <Text fw={700}>Solicitudes de crédito</Text>
+          <Text size="xs" c="dimmed">
+            Last updated: {lastUpdatedLabel}
+          </Text>
+        </Stack>
         <Group gap="sm">
           <Select
             label="País"
