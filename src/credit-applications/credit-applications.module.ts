@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CacheModule } from '../cache/cache.module';
 import { Country } from '../countries/entities/country.entity';
 import { CountryRule } from '../countries/entities/country-rule.entity';
+import { AsyncJob } from '../async-jobs/entities/async-job.entity';
 import { CreditApplicationsController } from './credit-applications.controller';
 import { BankProviderRegistryService } from './bank-providers/bank-provider-registry.service';
 import { CreditApplicationRiskService } from './credit-application-risk.service';
@@ -23,6 +24,7 @@ import { RiskStrategyRegistryService } from './risk-strategies/risk-strategy-reg
       ApplicationRiskResult,
       Country,
       CountryRule,
+      AsyncJob,
     ]),
     CacheModule,
   ],

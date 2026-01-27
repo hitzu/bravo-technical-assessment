@@ -47,11 +47,12 @@ export type PaginatedResponse<T> = {
   pageSize: number;
 };
 
-export type AsyncJob = {
-  jobId: string;
-  applicationId?: string;
+export type RiskEvalJobSummary = {
   status: string;
   attempts: number;
-  lastError?: string;
-  updatedAt: string;
+  lastError: string | null;
+};
+
+export type DlqRiskEvaluation = CreditApplication & {
+  riskEvalJob: RiskEvalJobSummary | null;
 };

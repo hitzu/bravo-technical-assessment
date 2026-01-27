@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { Stack, Table, Text } from '@mantine/core';
 
 import { getDlqJobs } from '../../api/services';
-import type { AsyncJob } from '../../api/types/api';
+import type { DlqRiskEvaluation } from '../../api/types/api';
 
 export function DlqJobsTable() {
-  const [jobs, setJobs] = useState<AsyncJob[]>([]);
+  const [jobs, setJobs] = useState<DlqRiskEvaluation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [dlqUnavailable, setDlqUnavailable] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -17,7 +17,7 @@ export function DlqJobsTable() {
         setIsLoading(true);
         setDlqUnavailable(false);
         setErrorMessage(null);
-        const res = await getDlqJobs(50);
+        const res = await getDlqJobs();
         if (!res) {
           setDlqUnavailable(true);
           setJobs([]);
@@ -52,9 +52,9 @@ export function DlqJobsTable() {
         <Table striped highlightOnHover withTableBorder withColumnBorders>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>jobId</Table.Th>
               <Table.Th>applicationId</Table.Th>
-              <Table.Th>status</Table.Th>
+              <Table.Th>fullName</Table.Th>
+              <Table.Th>jobStatus</Table.Th>
               <Table.Th>attempts</Table.Th>
               <Table.Th>lastError</Table.Th>
               <Table.Th>updatedAt</Table.Th>
@@ -63,12 +63,12 @@ export function DlqJobsTable() {
           <Table.Tbody>
             {jobs.length > 0 ? (
               jobs.map((j) => (
-                <Table.Tr key={j.jobId}>
-                  <Table.Td>{j.jobId}</Table.Td>
-                  <Table.Td>{j.applicationId ?? '-'}</Table.Td>
-                  <Table.Td>{j.status}</Table.Td>
-                  <Table.Td>{j.attempts}</Table.Td>
-                  <Table.Td>{j.lastError ?? '-'}</Table.Td>
+                <Table.Tr key={j.id}>
+                  <Table.Td>{j.id}</Table.Td>
+                  <Table.Td>{j.fullName}</Table.Td>
+                  <Table.Td>{j.riskEvalJob?.status ?? '-'}</Table.Td>
+                  <Table.Td>{j.riskEvalJob?.attempts ?? '-'}</Table.Td>
+                  <Table.Td>{j.riskEvalJob?.lastError ?? '-'}</Table.Td>
                   <Table.Td>{new Date(j.updatedAt).toLocaleString()}</Table.Td>
                 </Table.Tr>
               ))

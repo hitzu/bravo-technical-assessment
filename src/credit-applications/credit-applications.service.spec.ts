@@ -21,6 +21,7 @@ import { CREDIT_APPLICATION_STATUS } from '../common/types/credit-application-st
 import { COUNTRY_STATUS } from '../common/types/country-status.type';
 import { AppDataSource as TestDataSource } from '../config/database/data-source';
 import { EXCEPTION_RESPONSE } from '../config/errors/exception-response.config';
+import { AsyncJob } from '../async-jobs/entities/async-job.entity';
 import type { CreateCreditApplicationDto } from './dto/create-credit-application.dto';
 import type { ListCreditApplicationsQueryDto } from './dto/list-credit-applications.query.dto';
 import { CreditApplicationsService } from './credit-applications.service';
@@ -50,6 +51,10 @@ describe('CreditApplicationsService', () => {
         {
           provide: getRepositoryToken(ApplicationRiskResult),
           useValue: TestDataSource.getRepository(ApplicationRiskResult),
+        },
+        {
+          provide: getRepositoryToken(AsyncJob),
+          useValue: TestDataSource.getRepository(AsyncJob),
         },
         {
           provide: getRepositoryToken(Country),

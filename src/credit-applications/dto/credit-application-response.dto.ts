@@ -3,9 +3,11 @@ import { Expose } from 'class-transformer';
 
 import type { CreditApplication } from '../entities/credit-applications.entity';
 import type { ApplicationRiskResult } from '../entities/application-risk-result.entity';
+import type { ASYNC_JOB_STATUS } from '../../async-jobs/types/async-job-status.type';
 import { CREDIT_APPLICATION_STATUS } from '../../common/types/credit-application-status.type';
 import { ApplicationRiskResultSummaryDto } from './application-risk-result-summary.dto';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
+import { RiskEvalJobSummaryDto } from './risk-eval-job-summary.dto';
 
 export class CreditApplicationResponseDto {
   @Expose()
@@ -92,6 +94,15 @@ export class CreditApplicationResponseDto {
 
   @Expose()
   @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Latest risk evaluation async job metadata (when applicable)',
+    type: RiskEvalJobSummaryDto,
+  })
+  riskEvalJob?: RiskEvalJobSummaryDto | null;
+
+  @Expose()
+  @ApiProperty({
     description: 'Creation timestamp',
     example: '2026-01-17T00:00:00.000Z',
   })
@@ -111,7 +122,11 @@ export class CreditApplicationResponseDto {
   })
   user: UserResponseDto;
 
-  constructor(application: CreditApplication, riskResult?: ApplicationRiskResult | null) {
+  constructor(
+    application: CreditApplication,
+    riskResult?: ApplicationRiskResult | null,
+    riskEvalJob?: { status: ASYNC_JOB_STATUS; attempts: number; lastError: string | null } | null,
+  ) {
     this.id = application.id;
     this.tenantId = application.tenantId;
     this.createdBy = application.createdBy;
@@ -129,6 +144,7 @@ export class CreditApplicationResponseDto {
         debtToIncomeRatio: riskResult.debtToIncomeRatio,
       })
       : null;
+    this.riskEvalJob = riskEvalJob ? new RiskEvalJobSummaryDto(riskEvalJob) : null;
     this.createdAt = application.createdAt;
     this.updatedAt = application.updatedAt;
     this.user = new UserResponseDto(application.user);

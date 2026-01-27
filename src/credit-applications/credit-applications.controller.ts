@@ -26,6 +26,7 @@ import { CreateCreditApplicationDto } from './dto/create-credit-application.dto'
 import { CreditApplicationResponseDto } from './dto/credit-application-response.dto';
 import { ListCreditApplicationsQueryDto } from './dto/list-credit-applications.query.dto';
 import { ListCreditApplicationsResponseDto } from './dto/list-credit-applications-response.dto';
+import { ListRiskDlqCreditApplicationsQueryDto } from './dto/list-risk-dlq-credit-applications.query.dto';
 import { UpdateCreditApplicationStatusDto } from './dto/update-credit-application-status.dto';
 import { EXCEPTION_RESPONSE } from '../config/errors/exception-response.config';
 
@@ -81,6 +82,32 @@ export class CreditApplicationsController {
 
     return new ListCreditApplicationsResponseDto({
       data: result.data.map((a) => new CreditApplicationResponseDto(a)),
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize,
+    });
+  }
+
+  @Get('risk-evaluations/dlq')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'List credit applications whose risk evaluation went to DLQ (RBAC-scoped)',
+  })
+  @ApiOkResponse({ type: ListCreditApplicationsResponseDto })
+  async listRiskEvaluationsDlq(
+    @AuthUser() authUser: AuthUserContext,
+    @Query() query: ListRiskDlqCreditApplicationsQueryDto,
+  ): Promise<ListCreditApplicationsResponseDto> {
+    const result =
+      await this.creditApplicationsService.listApplicationsWithRiskEvalDlq(
+        authUser.tenantId,
+        authUser.userId,
+        authUser.role,
+        query,
+      );
+
+    return new ListCreditApplicationsResponseDto({
+      data: result.data.map((row) => new CreditApplicationResponseDto(row.application, null, row.riskEvalJob)),
       total: result.total,
       page: result.page,
       pageSize: result.pageSize,

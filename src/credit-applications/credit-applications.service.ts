@@ -10,6 +10,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { FindOptionsWhere, Repository } from 'typeorm';
 
 import type { AuthUserRole } from '../auth/types/auth-user-context';
+import { AsyncJob } from '../async-jobs/entities/async-job.entity';
+import { ASYNC_JOB_STATUS } from '../async-jobs/types/async-job-status.type';
+import { ASYNC_JOB_TYPE } from '../async-jobs/types/async-job-type.type';
 import type { CachePort } from '../cache/cache.port';
 import { CACHE_PORT } from '../cache/cache.port';
 import { USER_ROLES } from '../common/types/user-roles.type';
@@ -19,6 +22,7 @@ import { ApplicationRiskResult } from './entities/application-risk-result.entity
 import { CreditApplication } from './entities/credit-applications.entity';
 import type { CreateCreditApplicationDto } from './dto/create-credit-application.dto';
 import type { ListCreditApplicationsQueryDto } from './dto/list-credit-applications.query.dto';
+import type { ListRiskDlqCreditApplicationsQueryDto } from './dto/list-risk-dlq-credit-applications.query.dto';
 import { Country } from '../countries/entities/country.entity';
 import { COUNTRY_STATUS } from '../common/types/country-status.type';
 
@@ -38,6 +42,8 @@ export class CreditApplicationsService {
     private readonly creditApplicationsRepository: Repository<CreditApplication>,
     @InjectRepository(ApplicationRiskResult)
     private readonly applicationRiskResultsRepository: Repository<ApplicationRiskResult>,
+    @InjectRepository(AsyncJob)
+    private readonly asyncJobsRepository: Repository<AsyncJob>,
     @InjectRepository(Country)
     private readonly countriesRepository: Repository<Country>,
     @Inject(CACHE_PORT)
@@ -121,6 +127,128 @@ export class CreditApplicationsService {
       order: { createdAt: 'DESC' },
       skip,
       take,
+    });
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  async listApplicationsWithRiskEvalDlq(
+    tenantId: string,
+    userId: string,
+    role: AuthUserRole,
+    filters: ListRiskDlqCreditApplicationsQueryDto,
+  ): Promise<{
+    data: Array<{
+      application: CreditApplication;
+      riskEvalJob: Pick<AsyncJob, 'status' | 'attempts' | 'lastError'>;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    this.assertRoleAllowed(role, [USER_ROLES.ADMIN, USER_ROLES.AGENT]);
+
+    const page = filters.page ?? 1;
+    const pageSize = filters.pageSize ?? 20;
+    const skip = (page - 1) * pageSize;
+    const take = pageSize;
+
+    const dlqJobSubQuery = this.asyncJobsRepository
+      .createQueryBuilder('job')
+      .select('job.status', 'status')
+      .addSelect('job.attempts', 'attempts')
+      .addSelect('job.lastError', 'last_error')
+      .addSelect(`job.payload->>'applicationId'`, 'application_id')
+      .where('job.tenantId = :tenantId', { tenantId })
+      .andWhere('job.type = :jobType', { jobType: ASYNC_JOB_TYPE.RISK_EVAL })
+      .andWhere('job.status = :jobStatus', { jobStatus: ASYNC_JOB_STATUS.DLQ })
+      .distinctOn([`job.payload->>'applicationId'`])
+      .orderBy(`job.payload->>'applicationId'`, 'ASC')
+      .addOrderBy('job.updatedAt', 'DESC');
+
+    const baseQuery = this.creditApplicationsRepository
+      .createQueryBuilder('application')
+      .leftJoinAndSelect('application.user', 'user')
+      .innerJoin(
+        `(${dlqJobSubQuery.getQuery()})`,
+        'dlqjob',
+        `dlqjob."application_id" = application.id::text`,
+      )
+      .addSelect('dlqjob.status', 'dlqjob_status')
+      .addSelect('dlqjob.attempts', 'dlqjob_attempts')
+      .addSelect('dlqjob."last_error"', 'dlqjob_last_error')
+      .where('application.tenantId = :tenantId', { tenantId })
+      .orderBy('application.createdAt', 'DESC');
+
+    if (filters.countryId) {
+      baseQuery.andWhere('application.countryId = :countryId', {
+        countryId: filters.countryId,
+      });
+    }
+
+    if (filters.status) {
+      baseQuery.andWhere('application.status = :applicationStatus', {
+        applicationStatus: filters.status,
+      });
+    }
+
+    if (role === USER_ROLES.AGENT) {
+      baseQuery.andWhere('application.createdBy = :userId', { userId });
+    }
+
+    baseQuery.setParameters(dlqJobSubQuery.getParameters());
+
+    const countQuery = this.creditApplicationsRepository
+      .createQueryBuilder('application')
+      .innerJoin(
+        `(${dlqJobSubQuery.getQuery()})`,
+        'dlqjob',
+        `dlqjob."application_id" = application.id::text`,
+      )
+      .where('application.tenantId = :tenantId', { tenantId })
+      .setParameters(dlqJobSubQuery.getParameters());
+
+    if (filters.countryId) {
+      countQuery.andWhere('application.countryId = :countryId', {
+        countryId: filters.countryId,
+      });
+    }
+
+    if (filters.status) {
+      countQuery.andWhere('application.status = :applicationStatus', {
+        applicationStatus: filters.status,
+      });
+    }
+
+    if (role === USER_ROLES.AGENT) {
+      countQuery.andWhere('application.createdBy = :userId', { userId });
+    }
+
+    const [rawAndEntities, total] = await Promise.all([
+      baseQuery.skip(skip).take(take).getRawAndEntities(),
+      countQuery.getCount(),
+    ]);
+
+    const data = rawAndEntities.entities.map((application, index) => {
+      const raw = rawAndEntities.raw[index] as {
+        dlqjob_status: AsyncJob['status'];
+        dlqjob_attempts: AsyncJob['attempts'];
+        dlqjob_last_error: AsyncJob['lastError'];
+      };
+
+      return {
+        application,
+        riskEvalJob: {
+          status: raw.dlqjob_status,
+          attempts: Number(raw.dlqjob_attempts),
+          lastError: raw.dlqjob_last_error ?? null,
+        },
+      };
     });
 
     return {
