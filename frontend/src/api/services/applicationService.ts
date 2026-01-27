@@ -41,7 +41,7 @@ export async function updateApplicationStatus(
   id: string,
   newStatus: 'APPROVED' | 'REJECTED',
 ): Promise<void> {
-  const res = await axiosInstanceWithToken.patch<void>(
+  await axiosInstanceWithToken.patch<void>(
     `/applications/${id}/status`,
     { status: newStatus },
   );

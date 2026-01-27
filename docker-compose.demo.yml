@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bravo_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "57432:5432"
+    volumes:
+      - bravo_demo_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bravo_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      args:
+        # Frontend will call the API directly at this URL from the browser.
+        # For local demo it’s correct (UI on :4173, API on :3000).
+        VITE_API_BASE_URL: "http://localhost:3000"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: local
+      PORT: "3000"
+
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: bravo_dev
+
+      LOG_LEVEL: debug
+      ASYNC_JOBS_CRON_ENABLED: "true"
+      ASYNC_JOBS_CRON_LIMIT: "10"
+    ports:
+      - "3000:3000"
+      - "4173:4173"
+
+volumes:
+  bravo_demo_pgdata:
+    driver: local
+

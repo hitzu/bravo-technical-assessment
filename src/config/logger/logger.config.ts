@@ -6,23 +6,37 @@ import { randomUUID } from 'crypto';
 export const getLoggerConfigs = (): Params => {
   const isProduction = process.env.NODE_ENV === 'prod';
   const isDevelopment = process.env.NODE_ENV === 'local';
+  const prettyLogsEnabled = isDevelopment && process.env.LOG_PRETTY !== 'false';
+
+  const transport =
+    prettyLogsEnabled
+      ? (() => {
+        try {
+          // In the Docker demo image we install only production deps.
+          // pino-pretty is a devDependency, so it may be missing: fall back to JSON logs.
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require.resolve('pino-pretty');
+          return {
+            target: 'pino-pretty',
+            options: {
+              colorize: true,
+              translateTime: 'HH:MM:ss',
+              ignore: 'pid,hostname',
+              singleLine: false,
+            },
+          };
+        } catch {
+          return undefined;
+        }
+      })()
+      : undefined;
 
   return {
     pinoHttp: {
       level: process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
       genReqId: (req) => req.headers['x-request-id'] || randomUUID(),
 
-      transport: isDevelopment
-        ? {
-          target: 'pino-pretty',
-          options: {
-            colorize: true,
-            translateTime: 'HH:MM:ss',
-            ignore: 'pid,hostname',
-            singleLine: false,
-          },
-        }
-        : undefined,
+      transport,
 
       serializers: {
         req: (req: any) => ({

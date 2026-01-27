@@ -229,7 +229,7 @@ export function ApplicationsTable(props: {
     if (!selectedDetail || !adminNextStatus) return;
     try {
       setIsUpdatingStatus(true);
-      const updated = await updateApplicationStatus(
+      await updateApplicationStatus(
         selectedDetail.id,
         adminNextStatus,
       );

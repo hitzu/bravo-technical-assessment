@@ -34,104 +34,35 @@ El objetivo es mostrar cómo diseñaría e implementaría un sistema de este tip
 
 ### 1.1. Documentación (para el revisor)
 
-- `docs/technical assessment.md`: enunciado oficial de la prueba.
+- `docs/technical_assessment.md`: enunciado oficial de la prueba.
 - `docs/data_model.ts`: modelo de datos (ER + explicación tabla por tabla).
 - `docs/technical_decisions.md`: decisiones técnicas y tradeoffs (multi-tenant, cola en Postgres, strategy por país, cache, webhooks, polling).
 - `docs/future_work.md`: escalabilidad, grandes volúmenes e ideas de trabajo futuro.
-- `docs/design doc.md`: diseño detallado (más largo; útil si quieres profundizar).
+- `docs/design_doc.md`: diseño detallado (más largo; útil si quieres profundizar).
 
 ## 2. Cómo correr el proyecto en local
 
 ### 2.1. Prerrequisitos
 
-- Node 22 https://nodejs.org/es/download
-- pnpm https://pnpm.io/installation
 - Docker + Docker Compose
 
-      - Mac https://www.docker.com/products/docker-desktop/ + https://docs.docker.com/desktop/setup/install/mac-install/
-      - Windows https://www.docker.com/products/docker-desktop/ + https://docs.docker.com/desktop/setup/install/windows-install/
-      - Linux: https://docs.docker.com/engine/install/ + https://docs.docker.com/compose/install/linux/
-
-### 2.1 Instala dependencias
+### 2.2. Demo (Docker) — un comando y corre
 
 ```bash
-pnpm install
-```
-
-### 2.2. Levantar PostgreSQL
-
-En la raíz del repo:
-
-```bash
-docker compose up -d
-```
-
-Esto levanta dos bases:
-
-- Dev: `bravo_dev` en `localhost:57432`
-
-- Test: `bravo_test` en `localhost:57433`
-
-### 2.3. Variables de entorno
-
-Usamos `.env.${NODE_ENV}`:
-
-```bash
-pnpm dlx shx cp .env.example .env.local
-```
-
-- Desarrollo: `.env.local`
-
-- Tests: `.env.test`
-
-Como base:
-
-```bash
-# .env.local
-NODE_ENV=local
-
-DB_HOST=localhost
-DB_PORT=57432
-DB_USERNAME=postgres
-DB_PASSWORD=postgres
-DB_NAME=bravo_dev
-
-ASYNC_JOBS_CRON_ENABLED=true
-ASYNC_JOBS_CRON_LIMIT=10
-
-# URL base para el “partner” mock (webhook)
-PARTNER_BASE_URL=http://localhost:3000
-```
-
-### 2.4. Instalar dependencias + migraciones + seeds
-
-```bash
-pnpm install
-
-# Migraciones
-pnpm db:run
-
-# Seeds de datos de demo (countries + rules, etc.)
-pnpm seed:dev-data
-```
-
-### 2.5. Correr backend y frontend
-
-Backend:
-
-```bash
-pnpm dev   # NestJS en http://localhost:3000
-```
-
-Frontend:
-
-```bash
-pnpm dev:front  # Vite en http://localhost:5173
+docker compose -f docker-compose.demo.yml up --build
 ```
 
 - Swagger: `http://localhost:3000/api`
 
-- Front: `http://localhost:5173`
+- API: `http://localhost:3000`
+
+- Front: `http://localhost:4173`
+
+Para bajar todo (incluyendo volumen de Postgres):
+
+```bash
+docker compose -f docker-compose.demo.yml down -v
+```
 
 ---
 
