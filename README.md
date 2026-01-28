@@ -284,3 +284,80 @@ Efectos:
 - Esto permite **conciliación manual** o, en el futuro, un proceso de reintento automático específico (por ejemplo, un comando “Reprocesar desde DLQ” en otro worker o panel).
 
 ---
+
+## 4. Validación de documentos por país (backend + frontend)
+
+La validación de documentos (NIF, CURP, RFC, etc.) no está hardcodeada en el código, sino que vive en la base de datos y se comparte entre backend y frontend a través del catálogo de países.
+
+### 4.1 Dónde se define la validación
+
+La tabla `countries` incluye, además del `code` y el `name`, estos campos:
+
+- `document_label`: texto para mostrar en UI (por ejemplo: `"NIF"`, `"CURP/RFC"`).
+- `document_regex_pattern`: regex en texto plano para validar el `document_id` en backend.
+- `document_example`: ejemplo que se muestra en el formulario para ayudar al usuario.
+
+Ejemplos simplificados (seed):
+
+- `ES`:
+  - `document_label = "NIF"`
+  - `document_regex_pattern = "^[0-9]{8}[A-Z]$"`
+  - `document_example = "12345678Z"`
+- `MX`:
+  - `document_label = "CURP"`
+  - `document_regex_pattern = "^[A-Z0-9]{10,18}$"`
+  - `document_example = "XEXX010101HNMEXX04"`
+
+### 4.2 Cómo valida el backend
+
+Cuando se hace `POST /applications`, el backend:
+
+1. Obtiene el país desde `countryId`.
+2. Carga la configuración de `countries` (incluyendo `document_regex_pattern`).
+3. Si hay un patrón definido:
+   - Construye un regex en runtime.
+   - Valida el `document_id` del payload.
+   - Si no cumple, responde `400 Bad Request` con un mensaje claro indicando que el documento es inválido para ese país.
+
+![backend document validation](./read_me_images/backend_document_validation_1.png)
+
+Esto permite cambiar la regla de validación **sin tocar código**, simplemente actualizando el registro de `countries`.
+
+### 4.3 Cómo se aprovecha en el frontend
+
+El frontend no reimplementa la lógica, pero sí usa la misma configuración para mejorar UX:
+
+1. Al cargar la pantalla, llama a `GET /countries`.
+2. Para cada país guarda:
+   - `document_label` se usa como label del campo (por ejemplo: “NIF”, “CURP”).
+   - `document_example` se usa como placeholder o hint debajo del input.
+3. (Opcional / mínimo) Puede hacer una validación rápida de longitud o formato **antes** de enviar al backend, pero la validación “real” siempre la hace el backend usando la regex de `countries`.
+
+De esta manera, **backend y frontend están alineados** sin duplicar reglas de negocio; el backend manda la verdad (regex) y el frontend la usa solo para mejorar la experiencia.
+
+![frontend document validation](./read_me_images/frontend_document_validation.png)
+
+### 4.4 Cómo probar la validación de documentos
+
+Para que el revisor pueda ver este comportamiento de forma clara, se recomienda seguir este flujo:
+
+2. **Elegir un país**
+   - En el formulario, seleccionar país `PT` o `MX`, notar que: el label del documento cambia según país (`NIF` vs `CURP`).
+
+3. **Probar un documento inválido**
+   - Para `PT`:
+     - Poner un valor que no cumpla el patrón, por ejemplo: `1234` o `ABCDEFGH1`.
+   - Intentar enviar la solicitud.
+   - Esperar una respuesta `400` indicando que el documento no es válido para ese país.
+
+4. **Probar un documento válido**
+   - Para `PT`, usar algo del estilo `123456789`.
+   - Para `MX`, usar algo como `XEXX010101HNMEXX04`.
+   - Enviar la solicitud.
+   - Ver que ahora sí se crea la solicitud y pasa a `PENDING`/`IN_REVIEW` de forma normal.
+
+Esto muestra tres cosas que son importantes en el diseño:
+
+- Las reglas de documento están **centralizadas en la base de datos**.
+- El backend **siempre** es la fuente de verdad (no dependemos solo de validación en el navegador).
+- El frontend se apoya en la misma configuración para ofrecer una UX consistente (labels, ejemplos y posibles validaciones ligeras antes de enviar).
