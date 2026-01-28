@@ -1,17 +1,17 @@
 # Decisiones técnicas
 
-Este documento explica **por qué** el proyecto está construido como está, y qué tradeoffs se tomaron para llegar a un MVP sólido y fácil de revisar (pensando en alguien que viene de Python y no usa NestJS a diario).
+Este documento explica **por qué** el proyecto está construido como está, y qué tradeoffs se tomaron para llegar a un MVP sólido y fácil de revisar.
 
 ## 1. Arquitectura general
 
 - **NestJS por módulos**: el backend está separado en módulos de dominio (por ejemplo: `credit-applications`, `async-jobs`, `countries`, `tenants`, `webhook-deliveries`, `auth`).
 - **Controllers vs Services**:
   - **Controllers** exponen endpoints HTTP y delegan la lógica.
-  - **Services** contienen la lógica de negocio y coordinan repositorios/serv°
-    No es una arquitectura hexagonal “pura”, pero sí hay **separación razonable**:
-- Infra (DB/TypeORM) aislada en repositorios.
-- Lógica de negocio en servicios.
-- “Puertos” puntuales (por ejemplo `CachePort`) para evitar acoplamiento fuerte a una tecnología concreta.
+  - **Services** contienen la lógica de negocio y coordinan repositorios/servicios.
+- No es una arquitectura hexagonal “pura”, pero sí hay **separación razonable**:
+  - Infra (DB/TypeORM) aislada en repositorios.
+  - Lógica de negocio en servicios.
+  - “Puertos” puntuales (por ejemplo `CachePort`) para evitar acoplamiento fuerte a una tecnología concreta.
 
 ## 2. Multi-tenant y RBAC
 
@@ -87,7 +87,7 @@ Estados de job:
 
 Tradeoff intencional para una prueba técnica:
 
-- **Menos infraestructura** (no Rabbit/Kafka/BullMQ/Redis solo para jobs).
+- **Menos infraestructura** no usamos Rabbit/Kafka/BullMQ/Redis para jobs.
 - Un solo deploy (DB + API) y el flujo es muy fácil de auditar en tablas.
 
 No es el patrón ideal para volúmenes masivos “de verdad”, pero es perfecto para demostrar:
@@ -99,7 +99,7 @@ No es el patrón ideal para volúmenes masivos “de verdad”, pero es perfecto
 
 ## 4. Motor de riesgo por país (Strategy pattern)
 
-### 4.1 Strategy pattern (explicado simple)
+### 4.1 Strategy pattern
 
 En vez de meter `if country == 'MX' ...` por todo el código, se usa una **estrategia por país**:
 
@@ -108,7 +108,6 @@ En vez de meter `if country == 'MX' ...` por todo el código, se usa una **estra
 
 Países implementados hoy (para el “core” del reto):
 
-- **ES**: reglas basadas principalmente en DTI; y un “hook” opcional con `country_rules.requested_amount_review_threshold`.
 - **MX** y **PT**: reglas simplificadas basadas en dos ratios:
   - DTI (deuda/ingreso del banco mock).
   - `requestedAmount / monthlyIncome` (monto solicitado / ingreso declarado).
@@ -133,8 +132,7 @@ Existe una tabla `country_rules` versionada y con flags de “activa” para:
 
 **Estado actual**:
 
-- el evaluador pasa la regla activa a la estrategia,
-- y **ES ya usa** `requested_amount_review_threshold` para degradar `APPROVE → REVIEW` cuando aplica,
+- el seeder genera las reglas y los valores en la estrategias activas
 - mientras que otras estrategias hoy ignoran algunos campos (quedaron como base para iteraciones futuras).
 
 ## 5. Cache in-memory y puerto para Redis
@@ -162,7 +160,7 @@ Invalidación (simple) basada en escrituras:
 - Al persistir un riesgo (`CreditApplicationRiskService`) se borra `application:<tenantId>:<applicationId>`.
 - Al actualizar el estado desde el webhook mock también se borra `application:<tenantId>:<applicationId>`.
 
-Nota honesta (deuda técnica): el update manual de estado (`PATCH /applications/:id/status`) **no invalida** el cache del detalle hoy, así que el TTL puede esconder el cambio por hasta ~60s.
+Deuda técnica: el update manual de estado (`PATCH /applications/:id/status`) **no invalida** el cache del detalle hoy, así que el TTL puede esconder el cambio por hasta ~60s.
 
 ## 6. Webhooks y procesos externos
 
@@ -189,8 +187,7 @@ Pendiente (para hacerlo “production-like”):
 - retries reales (usar `status=SENT/FAILED`, backoff, max attempts).
 - idempotencia estricta (rechazar duplicados por `idempotency_key`).
 - manejo robusto de errores del outbound (capturar status/body, reintentar, DLQ para webhooks).
-
-También hay un detalle relevante: el worker hoy hace un `fetch(...)` a `http://localhost:3000/...` y **no espera** el resultado (no `await`). Para la demo alcanza, pero para k8s/multi-instancia habría que usar `PARTNER_BASE_URL` y manejar errores/respuestas.
+- circuit break para abrir el circuito en caso de degradacion de servicios externos.
 
 ## 7. Actualización casi en tiempo real (polling)
 
@@ -225,6 +222,7 @@ Motivo: algunos navegadores pueden responder `304 Not Modified` y Axios trata `3
 - **Pros**
   - Simple de entender y auditar en SQL.
   - Permite compartir DB sin duplicar infraestructura.
+  - Monitorear y comparar tenants
 - **Contras**
   - Requiere disciplina: nunca olvidar filtrar por tenant.
   - En sistemas muy grandes, puede requerir particionado/sharding.
@@ -238,7 +236,7 @@ Motivo: algunos navegadores pueden responder `304 Not Modified` y Axios trata `3
 - **Contras**
   - No es ideal para millones de jobs/día (contención, mantenimiento, bloat).
   - Menos features que colas dedicadas (delayed jobs, retries avanzados, etc.).
-  - En producción probablemente migraría a una cola dedicada (Rabbit/Kafka) o un job runner (BullMQ).
+  - En producción probablemente migraría a una cola dedicada (Rabbit/Kafka).
 
 ### Cache in-memory (`CachePort`)
 

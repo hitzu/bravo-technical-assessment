@@ -64,20 +64,24 @@ const server = http.createServer(async (req, res) => {
     const u = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`);
     const pathname = u.pathname === '/' ? '/index.html' : u.pathname;
 
-    const fullPath = safeJoin(ROOT, pathname);
-    if (!fullPath) {
+    const requestedPath = safeJoin(ROOT, pathname);
+    if (!requestedPath) {
       res.writeHead(400);
       res.end('Bad Request');
       return;
     }
 
-    let body = await readFileIfExists(fullPath);
+    let servedPath = requestedPath;
+    let body = await readFileIfExists(servedPath);
     let status = 200;
 
     // SPA fallback: if route not found and browser expects HTML, serve index.html
     if (!body && isHtmlRequest(req)) {
       const indexPath = path.resolve(ROOT, 'index.html');
       body = await readFileIfExists(indexPath);
+      if (body) {
+        servedPath = indexPath;
+      }
       status = body ? 200 : 404;
     }
 
@@ -87,7 +91,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const ext = path.extname(fullPath);
+    const ext = path.extname(servedPath);
     const contentType = contentTypes.get(ext) ?? 'application/octet-stream';
     res.writeHead(status, { 'Content-Type': contentType });
     res.end(body);

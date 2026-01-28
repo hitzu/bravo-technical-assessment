@@ -229,10 +229,7 @@ export function ApplicationsTable(props: {
     if (!selectedDetail || !adminNextStatus) return;
     try {
       setIsUpdatingStatus(true);
-      await updateApplicationStatus(
-        selectedDetail.id,
-        adminNextStatus,
-      );
+      await updateApplicationStatus(selectedDetail.id, adminNextStatus);
       showNotification({
         title: 'Estado actualizado',
         message: `Estado de la solicitud de crédito actualizado`,
@@ -391,12 +388,12 @@ export function ApplicationsTable(props: {
             {!canShowAdminStatusOverride ? null : (
               <Stack gap="xs" mt="xs">
                 <Text fw={600} size="sm">
-                  Admin status override (IN_REVIEW only)
+                  Aprobar o rechazar solicitud
                 </Text>
                 <Select
                   data={[
-                    { value: 'APPROVED', label: 'APPROVED' },
-                    { value: 'REJECTED', label: 'REJECTED' },
+                    { value: 'APPROVED', label: 'Aceptar' },
+                    { value: 'REJECTED', label: 'Rechazar' },
                   ]}
                   value={adminNextStatus}
                   onChange={(v) =>
@@ -404,7 +401,7 @@ export function ApplicationsTable(props: {
                       v === 'APPROVED' || v === 'REJECTED' ? v : null,
                     )
                   }
-                  placeholder="Select new status"
+                  placeholder="Seleccionar nuevo estado"
                   w={240}
                 />
                 <Button
@@ -412,7 +409,7 @@ export function ApplicationsTable(props: {
                   disabled={!adminNextStatus}
                   loading={isUpdatingStatus}
                 >
-                  Update status
+                  Actualizar estado
                 </Button>
               </Stack>
             )}

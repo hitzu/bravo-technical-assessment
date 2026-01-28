@@ -17,7 +17,7 @@ export class MxBankProvider implements BankProvider {
     documentId: string,
     declaredMonthlyIncome?: number | null,
   ): Promise<BankSnapshot> {
-    faker.seed(seedFromString(documentId));
+    faker.seed(seedFromString('123456789'));
 
     const hasValidDeclaredIncome =
       typeof declaredMonthlyIncome === 'number' &&
@@ -29,7 +29,7 @@ export class MxBankProvider implements BankProvider {
         1,
         Math.round(
           declaredMonthlyIncome *
-            faker.number.float({ min: 0.95, max: 1.05, fractionDigits: 4 }),
+          faker.number.float({ min: 0.95, max: 1.05, fractionDigits: 4 }),
         ),
       )
       : faker.number.int({ min: 6000, max: 90000 });
